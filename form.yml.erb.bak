@@ -1,0 +1,129 @@
+<%-
+  cmd="/storage/sys/slurm/bin/sacctmgr -p -n show user $USER withassoc| awk -F \"|\" '{print $5}'"
+  allocations = []
+  user = User.new
+  cache = ActiveSupport::Cache::FileStore.new("/var/ood/cache/#{user.name}/pterminal", expires_in: 12.hours)
+  cache.cleanup()
+  allocations = cache.fetch('allocations', race_condition_ttl: 10.seconds) do
+    callocations = []
+    begin
+      output, status = Open3.capture2e(cmd)
+      if status.success?
+        callocations = output.split("\n").map(&:strip).reject(&:blank?).sort
+      else
+        raise output
+      end
+    rescue => e
+      callocations = []
+      error = e.message.strip
+    end
+    callocations
+  end
+-%>
+---
+cluster: "rc"
+form:
+  - session_type
+  - rc_account
+  - rc_msa_account
+  - input_sequence
+  - bc_email_on_started
+submit: "submit.yml.erb"
+attributes:
+  bc_num_slots: "1"
+  bc_num_cores:
+    label: "Number of Cores"
+    widget: number_field
+    min: 1
+    max: 48
+    step: 1
+    value: 1
+  num_gpus:
+    label: "Number of GPUs"
+    widget: number_field
+    min: 0
+    max: 2
+    step: 1
+    value: 0
+  bc_num_mem:
+    label: "Memory per core (in GB)"
+    widget: number_field
+    min: 1
+    max: 350
+    step: 1
+    value: 4
+  input_sequence:
+    label: Input Amino Acid Sequence (FASTA Format)
+    widget: text_area
+    value: |
+      >Seq1
+      LYLIFGAWAGMVGTALSLLIRAELGQPGTLLGDDQIYNVIVTAHAFVMIFFMVMPIMIGGFGNWLVPLMI
+    help: |
+      - Runtime increases with sequence length
+
+  rc_msa_account:
+    label: "Allocation to run Multiple Sequence Alignment"
+    help: "Please select a CPU allocation from the drop-down"
+    widget: select
+    options:
+  <%- if !allocations.blank? -%>
+    <%- allocations.each do |a| -%>
+      - [ "<%= a %>", "<%= a %>" ]
+    <%- end -%>
+  <%- end -%>
+  session_type:
+    label: "Protein Prediction Engine"
+    help: "NOTE: AlphaFold is more accurate, ESMFold is faster"
+    widget: select
+    options:
+      - ['AlphaFold', '0',
+        ]
+      - ['ESMFold', '1',
+          data-hide-rc-msa-account: true
+        ]
+  rc_account:
+    label: "Allocation"
+    help: "Please select a GPU allocation from the drop-down"
+    widget: select
+    options:
+  <%- if !allocations.blank? -%>
+    <%- allocations.each do |a| -%>
+      - [ "<%= a %>", "<%= a %>" ]
+    <%- end -%>
+  <%- end -%>
+  rc_queue:
+    widget: select
+    label: "partition"
+    options:
+#      - [
+#          "open", "open",
+#          data-option-for-node-type-gpu: false
+#        ]
+#      - [
+#          "open-suspend", "open-suspend",
+#          data-option-for-node-type-gpu: false
+#        ]
+# :wq
+# - [
+#          "Interactive", "intr",
+#        ]
+      - [
+          "SLA Prio", "sla-prio",
+        ]
+      - [
+          "Burst mode", "burst",
+        ]
+      - [
+          "Burst Suspend", "burst-suspend",
+        ]
+  node_type:
+      widget: select
+      label: "Node type"
+      options:
+ #       - [ "Standard Cores",     "sc",
+ #           data-hide-num-gpus: true
+ #         ]
+         - [ "Gpu Cores",     "gpu", ]
+ #       - [ "Interactive Cores",     "ic",
+ #           data-hide-num-gpus: true
+ #          ]

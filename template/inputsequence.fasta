@@ -1,0 +1,1 @@
+<%= context.input_sequence.gsub /\r\n?/, n %>

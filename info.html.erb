@@ -1,0 +1,49 @@
+<div class="alert alert-info">
+  <h4>Protein Structure Prediction Job Information</h4>
+  
+  <p>Your protein structure prediction job has been submitted. Here's some important information:</p>
+
+  <h5>Job Output Location</h5>
+  <p>Your job output will be available in the specified working directory, including important files such as PDB structures (ranked_0.pdb being the highest-confidence model), MSA files, and result_model_*.pkl files containing detailed output and confidence scores.</p>
+
+  <h5>Common Mistakes</h5>
+  <ul>
+    <li>Entering a working directory that does not exist, or one that is not writable by the user.</li>
+    <li>Using allocations that do not have resources available in terms of nodes, GPUs, or CPU cores.</li>
+  </ul>
+
+  <h5>Output Files</h5>
+  <p>A new directory with the current date and time has been created under the specified working directory. All output files will be stored there.</p>
+
+  <h5>Debugging Tips</h5>
+  <p>If you need to review your job's performance or troubleshoot any issues, check the log files in the following directory:</p>
+  <code>"Working_Directory"/run_[date_time]/logs/</code>
+
+  <p>There are two separate log files you should monitor:</p>
+  <ol>
+    <li>CPU phase log: <code>alphafold_job_<%= ENV['USER'] %>_cpu_*.log</code>
+      <ul>
+        <li>This script runs first and handles the initial data processing and MSA generation.</li>
+        <li>Monitor this log for any issues related to input sequence processing or MSA generation.</li>
+      </ul>
+    </li>
+    <li>GPU phase log: <code>alphafold_job_<%= ENV['USER'] %>_gpu_*.log</code>
+      <ul>
+        <li>This script runs after the successful completion of the CPU phase.</li>
+        <li>It handles the actual protein structure prediction using the GPU.</li>
+        <li>Monitor this log for any issues related to the prediction process or GPU utilization.</li>
+      </ul>
+    </li>
+  </ol>
+
+  <p><strong>Important:</strong> Please monitor both log files carefully. If you notice anything unusual or if the CPU phase doesn't complete successfully, the GPU phase will not start. Some things to watch out for include:</p>
+  <ul>
+    <li>Generation of feature.pkl under the DESIGN_ESM directory after the first phase</li>
+    <li>Error messages or unexpected warnings</li>
+    <li>Sudden termination of either script</li>
+    <li>Unusually long running times for either phase</li>
+    <li>Any indication of resource constraints (e.g., out of memory errors)</li>
+  </ul>
+
+  <p>For more detailed information on interpreting results, please refer to the AlphaFold documentation.</p>
+</div>

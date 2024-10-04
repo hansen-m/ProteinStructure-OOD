@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# Set up required environment
+module use Insert Path Here
+module load anaconda
+
+echo "running"
+
+export CONDA_ENV="Insert Path Here"
+export ALPHAMSA="Insert Path Here"
+export ALPHAGPU="Insert Path Here"
+
+WORKINGDIR="Insert Path Here"
+INPUT="$WORKINGDIR/FASTA_GENE"
+CPU_OUTPUT="$WORKINGDIR/temp/CPU-SLURM"
+GPU_OUTPUT="$WORKINGDIR/temp/GPU-SLURM"
+STRUCT="$WORKINGDIR/temp/DESIGN-ESM"
+
+mkdir -p "$CPU_OUTPUT"
+mkdir -p "$GPU_OUTPUT"
+mkdir -p "$STRUCT"
+
+export msa=<%= context.rc_msa_account.to_s %>
+cat $seq > /scratch/$USER/sequence.fasta
+
+export WORKINGDIR="<%= context.working_directory %>"
+
+<%- if context.session_type == "AlphaFold" -%>
+echo "Debug: About to run alphafold.sh with sequence: <%= context.input_sequence.to_s %>"
+srun --export=ALL bash alphafold.sh $'<%= context.input_sequence.to_s.gsub("\n","\\n").gsub("'", "'\\''") %>' <%= context.rc_msa_account.to_s %> $USER $WORKINGDIR <%= context.rc_account.to_s %>
+echo "Debug: Finished running alphafold.sh"
+<%- elsif context.session_type == "ESMFold" -%>
+echo "running $USER"
+srun --export=ALL bash esmfold.sh $USER
+<%- else -%>
+echo "Invalid session type. Exiting"
+<%- end -%>

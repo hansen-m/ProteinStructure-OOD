@@ -1,0 +1,23 @@
+# Find available port to run server on
+STERMINAL_PORT=0
+
+# Find available port to run server on
+##port=$(find_port ${host} 8888 8929)
+#use random port selection to prevent issues related to multiple sessions starting simultaneously
+while :
+do
+  IPORT=$(shuf -i 8888-8929 -n 1)
+  echo ${host} $IPORT
+  if ! /usr/bin/nc -zv ${host} ${IPORT}; then
+    STERMINAL_PORT=${IPORT}
+    break
+  fi
+done
+
+#Generate passwprd
+password="$(create_passwd 32)"
+STERMINAL_PW=${password}
+export STERMINAL_PW
+
+port=${STERMINAL_PORT}
+export STERMINAL_PORT

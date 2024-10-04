@@ -1,0 +1,46 @@
+<%-
+#  ppn = bc_num_cores.blank? ? 1 :  bc_num_cores.to_i
+#  nodes = bc_num_slots.blank? ? 1 : bc_num_slots.to_i
+#  mem_amt = bc_num_mem.blank? ? 4 : bc_num_mem.to_i
+#  mem_amt = "#{mem_amt}G" 
+#  num_gpus_str = num_gpus.to_s
+#  num_gpus_str = "gpu:#{num_gpus_str}"
+#  num_gpus = num_gpus.blank? ? 1 : num_gpus.to_i
+   rc_queue = "sla-prio".to_s
+#  case node_type
+#  when "ic"
+#    slurm_args = [ "--nodes", "1", "--ntasks-per-node", "1","--mem-per-cpu",mem_amt ]
+#    slurm_args = slurm_args + [ "--partition", "intr" ]
+#    if ppn > 4
+#      ppn = 4
+#    end
+#    slurm_args = slurm_args + [ "--cpus-per-task","#{ppn}" ]
+#  when "gpu"
+#   case rc_queue
+#   when "sla-prio"
+#            slurm_args = [ "--nodes", "1", "--ntasks-per-node", "1","--mem-per-cpu","#{mem_amt}","--cpus-per-task","#{ppn}","--gpus-per-node", "#{num_gpus}", "--partition", rc_queue, "--gres", "#{num_gpus_str}"  ]
+#    when "burst"
+#            slurm_args = [ "--nodes", "1", "--ntasks-per-node", "1","--mem-per-cpu","#{mem_amt}","--cpus-per-task","#{ppn}","--gpus-per-node", "#{num_gpus}", "--partition", "sla-prio,burst", "-q", "burst4x", "--gres", "#{num_gpus_str}" ]
+#    when "burst-suspend"
+#            slurm_args = [ "--nodes", "1", "--ntasks-per-node", "1","--mem-per-cpu","#{mem_amt}","--cpus-per-task","#{ppn}","--gpus-per-node", "#{num_gpus}", "--partition", rc_queue  ]
+#    else
+#     slurm_args = [ "--nodes", "1", "--ntasks-per-node", "1","--mem-per-cpu","#{mem_amt}","--cpus-per-task","#{ppn}", "--partition", rc_queue  ]
+#    end
+#  when "sc"
+#    slurm_args = ["--nodes", "1", "--ntasks-per-node", "1","--mem-per-cpu",mem_amt,"--cpus-per-task","#{ppn}", "--partition", rc_queue ]
+#  else
+#    slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--partition", rc_queue ]
+#  end
+#slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--partition", rc_queue ]
+slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "8", "--gpus", "1","--partition", rc_queue ]
+puts slurm_args.inspect
+%>
+batch_connect:
+  template: "basic"
+script:
+  accounting_id: "<%= rc_account %>"      
+  native:
+  <%- slurm_args.each do |arg| %>
+    - "<%= arg %>"
+  <%- end %>
+

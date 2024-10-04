@@ -1,0 +1,11 @@
+---
+name: Protein Structure Prediction
+category: Interactive Apps
+subcategory: Servers
+role: batch_connect
+metadata:
+  pintype: Interactive Servers
+description: |
+
+  This app will generate a predicted structure for the input amino acid
+  sequence using the selected engine.
