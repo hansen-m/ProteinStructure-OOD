@@ -26,7 +26,6 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
 STORAGE_BASE="/storage"
 ICDS_BASE="$STORAGE_BASE/icds/RISE/sw8/alphafold/alphafold_2.3_db"
-GROUP_BASE="$STORAGE_BASE/group/u1o/default/vvm5242"
 
 CURRENT_DATE=$(date +"%Y%m%d_%H%M%S")
 RUN_DIR="$WORKINGDIR/run_${CURRENT_DATE}"
@@ -45,8 +44,8 @@ PDB_SEQRES_PATH="$ICDS_BASE/pdb_seqres/pdb_seqres.txt"
 UNIREF30_PATH="$ICDS_BASE/uniref30/UniRef30_2021_03"
 BFD_PATH="$ICDS_BASE/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"
 
-ALPHAFOLD_CONTAINER="$GROUP_BASE/CONTAINER/alphafold-msa_2.3.1"
-ALPHAFOLD_GPU_SCRIPT="$GROUP_BASE/design_tools/run_alphafold-gpu_2.3.2.py"
+ALPHAFOLD_CONTAINER="/storage/icds/RISE/sw8/alphafold/singularity/alphafold_2.3.2-1.sif"
+ALPHAFOLD_GPU_SCRIPT="/storage/icds/RISE/sw8/alphafold/scripts/run/run_alphafold-gpu_2.3.2.py"
 
 JOB_NAME="alphafold_job_${USER}"
 FASTA_FILE="$CPU_OUTPUT/input.fasta"
@@ -81,7 +80,13 @@ echo "Debug: Starting CPU job"
 echo "Debug: Contents of input FASTA:"
 cat $FASTA_FILE
 
-time singularity run -B "$ICDS_BASE" -B "$WORKINGDIR" -B "/tmp" -B "$CPU_OUTPUT" \
+
+time singularity run \
+    -B "$ICDS_BASE" \
+    -B "$WORKINGDIR" \
+    -B "/tmp" \
+    -B "$CPU_OUTPUT" \
+    -B "$(dirname "$0")/singularity/app/alphafold/run_alphafold.py:/app/alphafold/run_alphafold.py" \
     --env CUDA_VISIBLE_DEVICES=0,NVIDIA_VISIBLE_DEVICES=0,TF_FORCE_UNIFIED_MEMORY=1,XLA_PYTHON_CLIENT_MEM_FRACTION=4.0 \
     $ALPHAFOLD_CONTAINER \
     --fasta_paths=$FASTA_FILE \
@@ -98,7 +103,7 @@ time singularity run -B "$ICDS_BASE" -B "$WORKINGDIR" -B "/tmp" -B "$CPU_OUTPUT"
     --db_preset=full_dbs \
     --model_preset=multimer \
     --use_precomputed_msas=True \
-    --hhblits_binary_path=/storage/home/vvm5242/hh-suite/bin/hhblits \
+    --hhblits_binary_path=/storage/icds/RISE/sw8/alphafold/hh-suite/bin/hhblits \
     --logtostderr
 EOF
 

@@ -2,9 +2,9 @@
   rc_queue = "open".to_s
   case session_type     
   when "ESMFold"
-      slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "8", "--gpus", "1", "--partition", rc_queue]
+      slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "1", "--gpus", "1", "--partition", "sla-prio,burst"]
   else
-      slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "8", "--partition", "open"]
+      slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "1", "--partition", "open"]
   end    
 -%>
 ---

@@ -1,8 +1,0 @@
-<div class="alert alert-info" >
-  <strong>Job Information:</strong>
-  <ul>
-    <li>Your protein structure prediction job is now running. You will be notified via email upon completion. Note: The Time Remaining above is the job walltime remaining, and therefore not a true estimate of job completion time.</li>
-   <li>Job output will be available here: For more details, visit <a href="https://rcportal.hpc.psu.edu/pun/sys/dashboard/files/fs/storage/home/jmp579">Job Output</a>.
-   </li>
-  </ul>
-</div>
