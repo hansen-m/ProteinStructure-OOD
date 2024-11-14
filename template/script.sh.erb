@@ -7,14 +7,10 @@ chmod +x "${BASH_SOURCE%/*}/alphafold.sh"
 
 module load anaconda
 
-export CONDA_ENV="/storage/work/vvm5242/testenv"
-export ALPHAMSA="/storage/group/u1o/default/vvm5242/design_tools/run_alphafold-msa_2.3.1.py"
-export ALPHAGPU="/storage/group/u1o/default/vvm5242/design_tools/run_alphafold-gpu_2.3.2.py"
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
 storage_base="/storage"
 icds_base="${storage_base}/icds/RISE/sw8/alphafold/alphafold_2.3_db"
-group_base="${storage_base}/group/u1o/default/vvm5242"
 
 export WORKINGDIR="<%= context.working_directory %>"
 

@@ -278,10 +278,6 @@
       <div class="alert alert-success">
         Job processing has completed successfully. You can now access your results in the working directory.
       </div>
-    <% elsif status[:script_status] == "failed" %>
-      <div class="alert alert-danger">
-        Job processing has failed. Please check the logs for details.
-      </div>
     <% elsif status[:script_status] == "running" %>
       <p><strong>Note:</strong> This page auto-refreshes every 30 seconds to show current progress.</p>
     <% else %>

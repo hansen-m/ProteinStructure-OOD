@@ -144,24 +144,46 @@ echo "Debug: GPU job submitted with ID: $GPU_JOB_ID"
 
 echo "Debug: All jobs submitted successfully"
 
+check_job_completion() {
+    local job_id=$1
+    local state=$(sacct -j "$job_id" -n -o State | head -1)
+    
+    state=$(echo "$state" | xargs)
+    
+    if [[ "$state" == "COMPLETED" ]]; then
+        return 0
+    elif [[ "$state" == "FAILED" || "$state" == "CANCELLED" || "$state" == "TIMEOUT" ]]; then
+        return 1
+    else
+        return 2  
+    fi
+}
+
 while true; do
     CPU_STATE=$(squeue -j "$CPU_JOB_ID" -h -o %t 2>/dev/null)
     GPU_STATE=$(squeue -j "$GPU_JOB_ID" -h -o %t 2>/dev/null)
     
+    # If jobs are no longer in queue, check their completion status
     if [[ -z "$CPU_STATE" && -z "$GPU_STATE" ]]; then
-        CPU_EXIT=$(sacct -j "$CPU_JOB_ID" -n -o State | head -1)
-        GPU_EXIT=$(sacct -j "$GPU_JOB_ID" -n -o State | head -1)
+        cpu_status=$(check_job_completion "$CPU_JOB_ID")
+        gpu_status=$(check_job_completion "$GPU_JOB_ID")
         
-        if [[ "$CPU_EXIT" == *"COMPLETED"* && "$GPU_EXIT" == *"COMPLETED"* ]]; then
+        # Both jobs completed successfully
+        if [[ $cpu_status -eq 0 && $gpu_status -eq 0 ]]; then
             echo "Both jobs completed successfully"
             update_status "completed"
             exit 0
-        else
-            echo "One or both jobs failed. CPU: $CPU_EXIT, GPU: $GPU_EXIT"
+        # At least one job failed
+        elif [[ $cpu_status -eq 1 || $gpu_status -eq 1 ]]; then
+            echo "One or both jobs failed"
             update_status "failed"
             exit 1
+        # Jobs are still in a transitional state
+        else
+            sleep 60
+            continue
         fi
     fi
     
-    sleep 60  
+    sleep 60
 done
