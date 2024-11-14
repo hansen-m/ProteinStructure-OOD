@@ -5,7 +5,6 @@ cluster: "rc"
 form:
   - session_type
   - auto_accounts
-  - auto_queues
   - working_directory
   - input_sequence
 
@@ -40,7 +39,3 @@ attributes:
     value: "/storage/home/<%= ENV['USER'] %>/AlphaFold"
     show_hidden: false
     show_files: false
-    favorites:
-      - "/storage/home/<%= ENV['USER'] %>"
-      - "/storage/work/<%= ENV['USER'] %>"
-      - "/storage/group"
