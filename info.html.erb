@@ -37,7 +37,7 @@
   
   <% 
   def get_job_ids(session_id)
-    output_log_path = staged_root.join('output.log’)
+    output_log_path = "/storage/home/#{ENV['USER']}/ondemand/data/sys/dashboard/batch_connect/dev/ICDS-Roar-OOD-protein_prediction/output/#{session_id}/output.log"
     return nil unless File.exist?(output_log_path)
   
     log_content = File.read(output_log_path)
@@ -272,4 +272,5 @@
     <li>MSA files and feature generation outputs</li>
     <li>Detailed prediction results and confidence scores</li>
   </ul>
+
 </div>

@@ -125,7 +125,6 @@ cat <<EOF > "$GPU_SLURM_SCRIPT"
 #SBATCH --time=8:00:00
 #SBATCH --account=$rc_account
 #SBATCH -p sla-prio,burst
-#SBATCH -q burst4x
 #SBATCH --exclude=p-gc-3024
 #SBATCH --output=$LOGDIR/$JOB_NAME/${JOB_NAME}_gpu_%j.log
 #SBATCH --dependency=afterok:$CPU_JOB_ID
