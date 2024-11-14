@@ -4,7 +4,7 @@
   when "ESMFold"
       slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "1", "--gpus", "1", "--partition", "sla-prio,burst"]
   else
-      slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "1", "--partition", "open"]
+      slurm_args = ["--account", "open", "--partition", "open"]
   end    
 -%>
 ---
