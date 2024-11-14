@@ -1,6 +1,6 @@
 
 import os
-PATH = 'Insert Path Here'
+PATH = '/scratch/sld5866/'
 os.environ['HF_HOME'] = PATH
 os.environ['HF_DATASETS_CACHE'] = PATH
 os.environ['TORCH_HOME'] = PATH
@@ -23,6 +23,6 @@ sequence = "NLYIQWLKDGGPSSGRPPPS"
 with torch.no_grad():
     output = model.infer_pdb(sequence)
 
-with open("Insert Path Here", "w") as f:
+with open("/scratch/sld5866/result.pdb", "w") as f:
     f.write(output)
 

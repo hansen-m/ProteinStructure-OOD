@@ -2,7 +2,7 @@
 
 module load anaconda
 #conda activate /storage/group/RISE/sld5866/envs/chat
-conda activate conda_env
+conda activate /storage/group/u1o/default/wkl2/esm_fold/conda_env
 #echo $2
 #printf $2 > fasta_file
 #seq=$(awk 'BEGIN {FS="\n";OFS=""} NR>0 {print ">"$1; $1=""; print}' fasta_file) 

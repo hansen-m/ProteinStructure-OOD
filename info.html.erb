@@ -1,49 +1,291 @@
+<style>
+.progress {
+  height: 20px;
+  margin: 10px 0;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.progress-bar {
+  background-color: #337ab7;
+  color: white;
+  text-align: center;
+  line-height: 20px;
+}
+
+.job-status {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.log-output {
+  font-family: monospace;
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+</style>
+
 <div class="alert alert-info">
   <h4>Protein Structure Prediction Job Information</h4>
   
-  <p>Your protein structure prediction job has been submitted. Here's some important information:</p>
+  <% 
+  def get_job_ids(session_id)
+    output_log_path = "/storage/home/#{ENV['USER']}/ondemand/data/sys/dashboard/batch_connect/dev/ICDS-Roar-OOD-protein_prediction/output/#{session_id}/output.log"
+    return nil unless File.exist?(output_log_path)
+  
+    log_content = File.read(output_log_path)
+    cpu_id = log_content.match(/CPU job submitted with ID: (\d+)/)&.captures&.first
+    gpu_id = log_content.match(/GPU job submitted with ID: (\d+)/)&.captures&.first
+    
+    return { cpu_id: cpu_id, gpu_id: gpu_id }
+  end
+
+  def get_cpu_phase_progress(log_content)
+    return { phase: "Unknown", progress: 0, details: [] } unless log_content
+  
+    progress = 0
+    phase = "CPU Phase - MSA Generation"
+    details = []
+  
+    # Phase 1: Jackhmmer UniRef90 Search (25%)
+    if log_content.include?('Started Jackhmmer (uniref90.fasta) query')
+      progress = 10
+      details << "Started UniRef90 search"
+      
+      if match = log_content.match(/Finished Jackhmmer \(uniref90\.fasta\) query in ([\d.]+) seconds/)
+        progress = 25
+        details << "Completed UniRef90 search in #{match[1]} seconds"
+      end
+    end
+  
+    # Phase 2: Jackhmmer MGnify Search (45%)
+    if log_content.include?('Started Jackhmmer (mgy_clusters_2022_05.fa) query')
+      progress = progress < 35 ? 35 : progress
+      details << "Started MGnify search"
+      
+      if match = log_content.match(/Finished Jackhmmer \(mgy_clusters_2022_05\.fa\) query in ([\d.]+) seconds/)
+        progress = 70
+        details << "Completed MGnify search in #{match[1]} seconds"
+      end
+    end
+  
+    # Phase 3: HHblits Search (20%)
+    if log_content.include?('Started HHblits query')
+      progress = progress < 75 ? 75 : progress
+      details << "Started HHblits search"
+      
+      if match = log_content.match(/Finished HHblits query in ([\d.]+) seconds/)
+        progress = 90
+        details << "Completed HHblits search in #{match[1]} seconds"
+      end
+    end
+  
+    # Phase 4: Template Search (10%)
+    if log_content.include?('Searching for template')
+      progress = progress < 95 ? 95 : progress
+      details << "Searching for templates"
+      
+      if match = log_content.match(/Total number of templates.*?: (\d+)/)
+        progress = 100
+        details << "Found #{match[1]} templates"
+      end
+    end
+  
+    { phase: phase, progress: progress, details: details }
+  end 
+
+  def get_gpu_phase_progress(log_content)
+    return { phase: "Unknown", progress: 0, details: [] } unless log_content
+  
+    progress = 0
+    phase = "GPU Phase - Structure Prediction"
+    details = []
+    
+    # Track each model's progress
+    model_counts = {
+      predictions: log_content.scan(/Running model model_\d+/).count,
+      completed_predictions: log_content.scan(/Total JAX model model_\d+.*predict time/).count,
+      completed_relaxations: log_content.scan(/Iteration completed: Einit.*Efinal/).count
+    }
+  
+    # Calculate progress based on completed steps
+    if model_counts[:predictions] > 0
+      # Each model is worth 20% (5 models total)
+      # Within each 20%: 19% for prediction, 1% for relaxation
+      completed_models = model_counts[:completed_predictions]
+      completed_relaxations = model_counts[:completed_relaxations]
+      
+      # Calculate progress
+      prediction_progress = completed_models * 19
+      relaxation_progress = completed_relaxations
+      progress = prediction_progress + relaxation_progress
+      
+      # Add details
+      details << "Completed #{completed_models}/5 model predictions"
+      details << "Completed #{completed_relaxations}/5 model relaxations"
+      
+      # Add current phase detail
+      if completed_models < 5
+        current_model = completed_models + 1
+        details << "Processing model #{current_model}/5"
+      elsif completed_relaxations < 5
+        current_relax = completed_relaxations + 1
+        details << "Relaxing model #{current_relax}/5"
+      end
+    end
+  
+    { 
+      phase: phase,
+      progress: progress,
+      details: details
+    }
+  end
+
+  def get_job_status(working_dir, session_id)
+    return {
+      phase: 'Queued',
+      progress: 0,
+      details: [],  # Initialize with empty array
+      cpu_log_content: '',
+      gpu_log_content: '',
+      script_status: 'queued'
+    } unless working_dir
+    
+    status_file = "#{working_dir}/job_status.txt"
+    script_status = File.exist?(status_file) ? File.read(status_file).strip : "unknown"
+    
+    job_ids = get_job_ids(session_id)
+    return {
+      phase: 'Queued',
+      progress: 0,
+      details: ['Job is in queue'],  # Provide queue status
+      cpu_log_content: '',
+      gpu_log_content: '',
+      script_status: 'queued'
+    } unless job_ids
+    
+    run_dirs = Dir.glob("#{working_dir}/run_*").sort_by { |f| File.mtime(f) }.last
+    return {
+      phase: 'Initializing',
+      progress: 0,
+      details: ['Setting up working directory'],
+      cpu_log_content: '',
+      gpu_log_content: '',
+      script_status: 'initializing'
+    } unless run_dirs
+  
+    job_name = "alphafold_job_#{ENV['USER']}"
+    log_dir = "#{run_dirs}/logs/#{job_name}"
+    return {
+      phase: 'Initializing',
+      progress: 0,
+      details: ['Setting up working directory'],
+      cpu_log_content: '',
+      gpu_log_content: '',
+      script_status: 'initializing'
+    } unless File.directory?(log_dir)
+  
+    cpu_log = Dir.glob("#{log_dir}/*_cpu_#{job_ids[:cpu_id]}.log").first
+    gpu_log = Dir.glob("#{log_dir}/*_gpu_#{job_ids[:gpu_id]}.log").first
+    
+    status = {
+      phase: 'Unknown',
+      progress: 0,
+      details: [],
+      cpu_log_content: '',
+      gpu_log_content: '',
+      script_status: script_status
+    }
+  
+    if cpu_log && File.exist?(cpu_log)
+      status[:cpu_log_content] = File.read(cpu_log)
+      if status[:cpu_log_content].include?('Starting CPU job')
+        cpu_status = get_cpu_phase_progress(status[:cpu_log_content])
+        status[:phase] = cpu_status[:phase]
+        status[:progress] = cpu_status[:progress]
+        status[:details].concat(cpu_status[:details])
+      end
+    end
+  
+    if gpu_log && File.exist?(gpu_log)
+      status[:gpu_log_content] = File.read(gpu_log)
+      if status[:gpu_log_content].include?('Running model')
+        gpu_status = get_gpu_phase_progress(status[:gpu_log_content])
+        status[:phase] = gpu_status[:phase]
+        status[:progress] = gpu_status[:progress]
+        status[:details].concat(gpu_status[:details])
+      end
+    end
+  
+    status
+  end
+  
+  working_dir = @user_context["working_directory"]
+  status = get_job_status(working_dir, @id)  
+  %>
+
+  <div class="job-status">
+    <h5>Current Status</h5>
+    <p>Phase: <%= status[:phase] %></p>
+    <div class="progress">
+      <div class="progress-bar" role="progressbar" style="width: <%= status[:progress] %>%">
+        <%= status[:progress] %>%
+      </div>
+    </div>
+    
+    <% if status[:details].any? %>
+      <h5>Details</h5>
+      <ul>
+        <% status[:details].each do |detail| %>
+          <li><%= detail %></li>
+        <% end %>
+      </ul>
+    <% end %>
+
+    <% if status[:cpu_log_content].present? %>
+      <h5>CPU Phase Log</h5>
+      <div class="log-output">
+<%= status[:cpu_log_content] %>
+      </div>
+    <% end %>
+
+    <% if status[:gpu_log_content].present? %>
+      <h5>GPU Phase Log</h5>
+      <div class="log-output">
+<%= status[:gpu_log_content] %>
+      </div>
+    <% end %>
+  </div>
 
   <h5>Job Output Location</h5>
-  <p>Your job output will be available in the specified working directory, including important files such as PDB structures (ranked_0.pdb being the highest-confidence model), MSA files, and result_model_*.pkl files containing detailed output and confidence scores.</p>
-
-  <h5>Common Mistakes</h5>
+  <p>Working Directory: <%= working_dir %></p>
+  <p>Output files will include:</p>
   <ul>
-    <li>Entering a working directory that does not exist, or one that is not writable by the user.</li>
-    <li>Using allocations that do not have resources available in terms of nodes, GPUs, or CPU cores.</li>
+    <li>PDB structures (ranked_0.pdb being the highest-confidence model)</li>
+    <li>MSA files and feature generation outputs</li>
+    <li>Detailed prediction results and confidence scores</li>
   </ul>
 
-  <h5>Output Files</h5>
-  <p>A new directory with the current date and time has been created under the specified working directory. All output files will be stored there.</p>
-
-  <h5>Debugging Tips</h5>
-  <p>If you need to review your job's performance or troubleshoot any issues, check the log files in the following directory:</p>
-  <code>"Working_Directory"/run_[date_time]/logs/</code>
-
-  <p>There are two separate log files you should monitor:</p>
-  <ol>
-    <li>CPU phase log: <code>alphafold_job_<%= ENV['USER'] %>_cpu_*.log</code>
-      <ul>
-        <li>This script runs first and handles the initial data processing and MSA generation.</li>
-        <li>Monitor this log for any issues related to input sequence processing or MSA generation.</li>
-      </ul>
-    </li>
-    <li>GPU phase log: <code>alphafold_job_<%= ENV['USER'] %>_gpu_*.log</code>
-      <ul>
-        <li>This script runs after the successful completion of the CPU phase.</li>
-        <li>It handles the actual protein structure prediction using the GPU.</li>
-        <li>Monitor this log for any issues related to the prediction process or GPU utilization.</li>
-      </ul>
-    </li>
-  </ol>
-
-  <p><strong>Important:</strong> Please monitor both log files carefully. If you notice anything unusual or if the CPU phase doesn't complete successfully, the GPU phase will not start. Some things to watch out for include:</p>
-  <ul>
-    <li>Generation of feature.pkl under the DESIGN_ESM directory after the first phase</li>
-    <li>Error messages or unexpected warnings</li>
-    <li>Sudden termination of either script</li>
-    <li>Unusually long running times for either phase</li>
-    <li>Any indication of resource constraints (e.g., out of memory errors)</li>
-  </ul>
-
-  <p>For more detailed information on interpreting results, please refer to the AlphaFold documentation.</p>
+  <div class="alert alert-info">
+    <% if status[:script_status] == "completed" %>
+      <div class="alert alert-success">
+        Job processing has completed successfully. You can now access your results in the working directory.
+      </div>
+    <% elsif status[:script_status] == "failed" %>
+      <div class="alert alert-danger">
+        Job processing has failed. Please check the logs for details.
+      </div>
+    <% elsif status[:script_status] == "running" %>
+      <p><strong>Note:</strong> This page auto-refreshes every 30 seconds to show current progress.</p>
+    <% else %>
+      <p><strong>Note:</strong> Job status unknown. Please check the logs for details.</p>
+    <% end %>
+  </div>
 </div>

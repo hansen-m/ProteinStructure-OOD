@@ -1,20 +1,17 @@
 <%-
-
- rc_queue = "sla-prio".to_s
+  rc_queue = "open".to_s
   case session_type     
   when "ESMFold"
-      slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "8", "--gpus", "1","--partition", rc_queue ]
-  when "AlphaFold"
-      slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "8","--partition", rc_queue ]
+      slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "8", "--gpus", "1", "--partition", rc_queue]
+  else
+      slurm_args = ["--nodes", "1", "--ntasks-per-node", "1", "--cpus-per-task", "8", "--partition", "open"]
   end    
-puts slurm_args.inspect
-%>
+-%>
+---
 batch_connect:
   template: "basic"
 script:
-  accounting_id: "<%= rc_account %>"      
   native:
-  <%- slurm_args.each do |arg| %>
-    - "<%= arg %>"
-  <%- end %>
-
+    <%- slurm_args.each do |arg| -%>
+      - "<%= arg %>"
+    <%- end -%>

@@ -1,16 +1,32 @@
 #!/bin/bash
 
 seq="$1"
-msa="$2"
-USER="$3"
-WORKINGDIR="$4"
-rc_account="$5"
+USER="$2" 
+WORKINGDIR="$3"
+rc_account="$4"
+STATUS_FILE="$5"
+
+# Function to update status
+update_status() {
+    echo "$1" > "$STATUS_FILE"
+}
+
+# Function to handle errors
+handle_error() {
+    echo "Error occurred: $1"
+    update_status "failed"
+    exit 1
+}
+
+# Set error trap
+trap 'handle_error "Unexpected error occurred"' ERR
 
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
+
 STORAGE_BASE="/storage"
-ICDS_BASE="Insert ICDS Base Here"
-GROUP_BASE="Insert Group Base Here"
+ICDS_BASE="$STORAGE_BASE/icds/RISE/sw8/alphafold/alphafold_2.3_db"
+GROUP_BASE="$STORAGE_BASE/group/u1o/default/vvm5242"
 
 CURRENT_DATE=$(date +"%Y%m%d_%H%M%S")
 RUN_DIR="$WORKINGDIR/run_${CURRENT_DATE}"
@@ -35,9 +51,9 @@ ALPHAFOLD_GPU_SCRIPT="$GROUP_BASE/design_tools/run_alphafold-gpu_2.3.2.py"
 JOB_NAME="alphafold_job_${USER}"
 FASTA_FILE="$CPU_OUTPUT/input.fasta"
 
-mkdir -p "$WORKINGDIR"
-mkdir -p "$RUN_DIR"
-mkdir -p "$CPU_OUTPUT" "$GPU_OUTPUT" "$STRUCT" "$LOGDIR/$JOB_NAME"
+mkdir -p "$WORKINGDIR" || handle_error "Failed to create working directory"
+mkdir -p "$RUN_DIR" || handle_error "Failed to create run directory"
+mkdir -p "$CPU_OUTPUT" "$GPU_OUTPUT" "$STRUCT" "$LOGDIR/$JOB_NAME" || handle_error "Failed to create output directories"
 
 echo "Debug: Received sequence: $seq"
 echo "Debug: Received msa: $msa"
@@ -58,7 +74,7 @@ cat <<EOF > "$CPU_SLURM_SCRIPT"
 #SBATCH --ntasks=4
 #SBATCH --mem=60GB
 #SBATCH --time=6:00:00
-#SBATCH --account=$msa
+#SBATCH --partition=open
 #SBATCH --output=$LOGDIR/$JOB_NAME/${JOB_NAME}_cpu_%j.log
 
 echo "Debug: Starting CPU job"
@@ -82,6 +98,7 @@ time singularity run -B "$ICDS_BASE" -B "$WORKINGDIR" -B "/tmp" -B "$CPU_OUTPUT"
     --db_preset=full_dbs \
     --model_preset=multimer \
     --use_precomputed_msas=True \
+    --hhblits_binary_path=/storage/home/vvm5242/hh-suite/bin/hhblits \
     --logtostderr
 EOF
 
@@ -90,7 +107,7 @@ echo "CPU job script contents:"
 cat "$CPU_SLURM_SCRIPT"
 
 echo "Debug: Submitting CPU job"
-CPU_JOB_ID=$(sbatch "$CPU_SLURM_SCRIPT" | awk '{print $4}')
+CPU_JOB_ID=$(sbatch "$CPU_SLURM_SCRIPT" | awk '{print $4}') || handle_error "Failed to submit CPU job"
 echo "Debug: CPU job submitted with ID: $CPU_JOB_ID"
 
 GPU_SLURM_SCRIPT="$GPU_OUTPUT/$JOB_NAME.slurm"
@@ -117,7 +134,29 @@ EOF
 
 echo "Debug: Created GPU SLURM script"
 echo "Debug: Submitting GPU job"
-GPU_JOB_ID=$(sbatch "$GPU_SLURM_SCRIPT" | awk '{print $4}')
+GPU_JOB_ID=$(sbatch "$GPU_SLURM_SCRIPT" | awk '{print $4}') || handle_error "Failed to submit GPU job"
 echo "Debug: GPU job submitted with ID: $GPU_JOB_ID"
 
 echo "Debug: All jobs submitted successfully"
+
+while true; do
+    CPU_STATE=$(squeue -j "$CPU_JOB_ID" -h -o %t 2>/dev/null)
+    GPU_STATE=$(squeue -j "$GPU_JOB_ID" -h -o %t 2>/dev/null)
+    
+    if [[ -z "$CPU_STATE" && -z "$GPU_STATE" ]]; then
+        CPU_EXIT=$(sacct -j "$CPU_JOB_ID" -n -o State | head -1)
+        GPU_EXIT=$(sacct -j "$GPU_JOB_ID" -n -o State | head -1)
+        
+        if [[ "$CPU_EXIT" == *"COMPLETED"* && "$GPU_EXIT" == *"COMPLETED"* ]]; then
+            echo "Both jobs completed successfully"
+            update_status "completed"
+            exit 0
+        else
+            echo "One or both jobs failed. CPU: $CPU_EXIT, GPU: $GPU_EXIT"
+            update_status "failed"
+            exit 1
+        fi
+    fi
+    
+    sleep 60  
+done

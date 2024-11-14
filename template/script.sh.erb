@@ -1,34 +1,65 @@
-#!/usr/bin/env bash
+#!/bin/bash
+set -e
 
-# Set up required environment
-module use Insert Path Here
+echo "Starting AlphaFold workflow at $(date)"
+
+chmod +x "${BASH_SOURCE%/*}/alphafold.sh"
+
 module load anaconda
 
-echo "running"
+export CONDA_ENV="/storage/work/vvm5242/testenv"
+export ALPHAMSA="/storage/group/u1o/default/vvm5242/design_tools/run_alphafold-msa_2.3.1.py"
+export ALPHAGPU="/storage/group/u1o/default/vvm5242/design_tools/run_alphafold-gpu_2.3.2.py"
+export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
-export CONDA_ENV="Insert Path Here"
-export ALPHAMSA="Insert Path Here"
-export ALPHAGPU="Insert Path Here"
-
-WORKINGDIR="Insert Path Here"
-INPUT="$WORKINGDIR/FASTA_GENE"
-CPU_OUTPUT="$WORKINGDIR/temp/CPU-SLURM"
-GPU_OUTPUT="$WORKINGDIR/temp/GPU-SLURM"
-STRUCT="$WORKINGDIR/temp/DESIGN-ESM"
-
-mkdir -p "$CPU_OUTPUT"
-mkdir -p "$GPU_OUTPUT"
-mkdir -p "$STRUCT"
-
-export msa=<%= context.rc_msa_account.to_s %>
-cat $seq > /scratch/$USER/sequence.fasta
+storage_base="/storage"
+icds_base="${storage_base}/icds/RISE/sw8/alphafold/alphafold_2.3_db"
+group_base="${storage_base}/group/u1o/default/vvm5242"
 
 export WORKINGDIR="<%= context.working_directory %>"
 
 <%- if context.session_type == "AlphaFold" -%>
 echo "Debug: About to run alphafold.sh with sequence: <%= context.input_sequence.to_s %>"
-srun --export=ALL bash alphafold.sh $'<%= context.input_sequence.to_s.gsub("\n","\\n").gsub("'", "'\\''") %>' <%= context.rc_msa_account.to_s %> $USER $WORKINGDIR <%= context.rc_account.to_s %>
-echo "Debug: Finished running alphafold.sh"
+
+STATUS_FILE="${WORKINGDIR}/job_status.txt"
+echo "running" > "$STATUS_FILE"
+
+srun --export=ALL bash "${BASH_SOURCE%/*}/alphafold.sh" $'<%= context.input_sequence.to_s.gsub("\n","\\n").gsub("'", "'\\''") %>' $USER $WORKINGDIR "<%= context.rc_account %>" "$STATUS_FILE" &
+ALPHAFOLD_PID=$!
+
+while true; do
+    if [[ ! -f "$STATUS_FILE" ]]; then
+        echo "Status file not found. Something went wrong."
+        exit 1
+    fi
+    
+    STATUS=$(cat "$STATUS_FILE")
+    
+    case $STATUS in
+        "completed")
+            echo "AlphaFold job completed successfully"
+            exit 0
+            ;;
+        "failed")
+            echo "AlphaFold job failed"
+            exit 1
+            ;;
+        "running")
+            echo "AlphaFold job still running... ($(date))"
+            sleep 60  
+            ;;
+        *)
+            echo "Unknown status: $STATUS"
+            sleep 60
+            ;;
+    esac
+    
+    if ! kill -0 $ALPHAFOLD_PID 2>/dev/null; then
+        echo "AlphaFold process terminated unexpectedly"
+        echo "failed" > "$STATUS_FILE"
+    fi
+done
+
 <%- elsif context.session_type == "ESMFold" -%>
 echo "running $USER"
 srun --export=ALL bash esmfold.sh $USER

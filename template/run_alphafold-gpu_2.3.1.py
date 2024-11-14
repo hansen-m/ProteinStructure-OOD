@@ -33,20 +33,20 @@ def parse_args():
     help='Whether to do OpenMM energy minimization using GPU.')
 
   parser.add_argument(
-    '--output_dir', default='Insert Path Here',
+    '--output_dir', default='/storage/home/wkl2/u1o/default/wkl2/230113_7E53-Yeast/OUTPUT',
     help='Path to a directory that will store the results.')
 
   parser.add_argument(
-    '--data_dir', default='Insert Path Here',
+    '--data_dir', default='/storage/icds/RISE/sw8/alphafold/alphafold_2.3_db',
     help='Path to directory with supporting data: AlphaFold parameters and genetic '
     'and template databases. Set to the target of download_all_databases.sh.')
 
   parser.add_argument(
-    '--mount_data_dir', default='Insert Path Here',
+    '--mount_data_dir', default='/storage/icds/RISE/sw8/alphafold/alphafold_2.3_db',
     help='Path to directory where databases reside.')
 
   parser.add_argument(
-    '--singularity_image_path', default='Insert Path Here',
+    '--singularity_image_path', default='/storage/home/wkl2/u1o/default/wkl2/CONTAINER/alphafold_2.3.1',
     help='Path to the AlphaFold singularity image.')
 
   parser.add_argument(

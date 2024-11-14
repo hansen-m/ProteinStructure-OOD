@@ -2,7 +2,9 @@
   cmd="/storage/sys/slurm/bin/sacctmgr -p -n show user $USER withassoc| awk -F \"|\" '{print $5}'"
   allocations = []
   user = User.new
-  cache = ActiveSupport::Cache::FileStore.new("/var/ood/cache/#{user.name}/pterminal", expires_in: 12.hours)
+  cache_dir = File.join(ENV['HOME'], '.ood_cache', 'pterminal')
+  FileUtils.mkdir_p(cache_dir) unless File.exist?(cache_dir)
+  cache = ActiveSupport::Cache::FileStore.new(cache_dir, expires_in: 12.hours)
   cache.cleanup()
   allocations = cache.fetch('allocations', race_condition_ttl: 10.seconds) do
     callocations = []
@@ -21,66 +23,17 @@
   end
 -%>
 ---
+title: "Protein Prediction"
 cluster: "rc"
+
 form:
   - session_type
-  - rc_msa_account
   - rc_account
   - working_directory
   - input_sequence
-  - bc_email_on_started
-submit: "submit.yml.erb"
+
 attributes:
-  bc_num_slots: "1"
-  bc_num_cores:
-    label: "Number of Cores"
-    widget: number_field
-    min: 1
-    max: 48
-    step: 1
-    value: 1
-  num_gpus:
-    label: "Number of GPUs"
-    widget: number_field
-    min: 0
-    max: 2
-    step: 1
-    value: 0
-  bc_num_mem:
-    label: "Memory per core (in GB)"
-    widget: number_field
-    min: 1
-    max: 350
-    step: 1
-    value: 4
-  session_type:
-    label: "Protein Prediction Engine"
-    help: "AlphaFold will be used for protein structure prediction"
-    widget: select
-    options:
-      - ['AlphaFold']
-  rc_msa_account:
-    label: "Allocation for Multiple Sequence Alignment (CPU Phase)"
-    help: "Please select a CPU allocation from the drop-down."
-    widget: select
-    value: "open"
-    options:
-  <%- if !allocations.blank? -%>
-    <%- default_set = false -%>
-    <%- allocations.each do |a| -%>
-      <%- if a == "open" && !default_set -%>
-      - [ "<%= a %>", "<%= a %>", data-default: true ]
-        <%- default_set = true -%>
-      <%- else -%>
-      - [ "<%= a %>", "<%= a %>" ]
-      <%- end -%>
-    <%- end -%>
-    <%- unless default_set -%>
-      <%- allocations.first(1).each do |a| -%>
-      - [ "<%= a %>", "<%= a %>", data-default: true ]
-      <%- end -%>
-    <%- end -%>
-  <%- end -%>
+
   rc_account:
     label: "Allocation for Structure Prediction Phase (GPU Phase)"
     help: "Please select a GPU allocation from the drop-down"
@@ -91,34 +44,33 @@ attributes:
       - [ "<%= a %>", "<%= a %>" ]
     <%- end -%>
   <%- end -%>
+
+  session_type:
+    label: "Protein Prediction Engine"
+    help: "NOTE: AlphaFold is more accurate, ESMFold is faster"
+    widget: select
+    options:
+      - ["AlphaFold", "AlphaFold"]
+
   input_sequence:
     label: Input Amino Acid Sequence (FASTA Format)
     widget: text_area
+    pattern: "^(>.+\n([ACDEFGHIKLMNPQRSTVWY]+(\n|$))+)+"
     value: |
       >Seq1
       LYLIFGAWAGMVGTALSLLIRAELGQPGTLLGDDQIYNVIVTAHAFVMIFFMVMPIMIGGFGNWLVPLMI
     help: |
       - Runtime increases with sequence length
+
   working_directory:
     label: "Working Directory"
-    help: "Enter the path for the working directory. Defaults to your home directory if left empty."
-    widget: text_field
-    value: "/storage/home/<%= user.name %>/AlphaFold"
-  rc_queue:
-    widget: select
-    label: "partition"
-    options:
-      - [
-          "SLA Prio", "sla-prio",
-        ]
-      - [
-          "Burst mode", "burst",
-        ]
-      - [
-          "Burst Suspend", "burst-suspend",
-        ]
-  node_type:
-      widget: select
-      label: "Node type"
-      options:
-         - [ "Gpu Cores",     "gpu", ]
+    help: "Select or enter the path for the working directory"
+    widget: "path_selector"
+    directory: "/storage/home/<%= ENV['USER'] %>"
+    value: "/storage/home/<%= ENV['USER'] %>/AlphaFold"
+    show_hidden: false
+    show_files: false
+    favorites:
+      - "/storage/home/<%= ENV['USER'] %>"
+      - "/storage/work/<%= ENV['USER'] %>"
+      - "/storage/group"
