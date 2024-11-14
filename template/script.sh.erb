@@ -50,10 +50,6 @@ while true; do
             ;;
     esac
     
-    if ! kill -0 $ALPHAFOLD_PID 2>/dev/null; then
-        echo "AlphaFold process terminated unexpectedly"
-        echo "failed" > "$STATUS_FILE"
-    fi
 done
 
 <%- elsif context.session_type == "ESMFold" -%>
