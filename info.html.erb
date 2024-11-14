@@ -272,16 +272,4 @@
     <li>MSA files and feature generation outputs</li>
     <li>Detailed prediction results and confidence scores</li>
   </ul>
-
-  <div class="alert alert-info">
-    <% if status[:script_status] == "completed" %>
-      <div class="alert alert-success">
-        Job processing has completed successfully. You can now access your results in the working directory.
-      </div>
-    <% elsif status[:script_status] == "running" %>
-      <p><strong>Note:</strong> This page auto-refreshes every 30 seconds to show current progress.</p>
-    <% else %>
-      <p><strong>Note:</strong> Job status unknown. Please check the logs for details.</p>
-    <% end %>
-  </div>
 </div>
