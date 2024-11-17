@@ -5,29 +5,69 @@ USER="$2"
 WORKINGDIR="$3"
 rc_account="$4"
 STATUS_FILE="$5"
+RUN_ID="$6"
 
-# Function to update status
 update_status() {
     echo "$1" > "$STATUS_FILE"
 }
 
-# Function to handle errors
 handle_error() {
     echo "Error occurred: $1"
     update_status "failed"
     exit 1
 }
 
-# Set error trap
-trap 'handle_error "Unexpected error occurred"' ERR
+trap 'error_code=$?; echo "Debug: Trap caught error $error_code at line ${BASH_LINENO[0]}"; if [[ $error_code -ne 0 ]]; then handle_error "Error $error_code at line ${BASH_LINENO[0]}"; fi' ERR
 
+monitor_jobs() {
+    local cpu_id=$1
+    local gpu_id=$2
+    
+    while true; do
+        CPU_STATE=$(squeue -j "$cpu_id" -h -o %t 2>/dev/null)
+        GPU_STATE=$(squeue -j "$gpu_id" -h -o %t 2>/dev/null)
+        
+        echo "Debug: CPU Job State: $CPU_STATE, GPU Job State: $GPU_STATE"
+
+        if [[ "$GPU_STATE" == "R" ]]; then
+            update_status "running"
+            sleep 60
+            continue
+        fi
+        
+        if [[ -z "$CPU_STATE" && -z "$GPU_STATE" ]]; then
+            sleep 10
+            
+            cpu_status=$(sacct -j "$cpu_id" --format=State -n | head -1 | tr -d ' ')
+            gpu_status=$(sacct -j "$gpu_id" --format=State -n | head -1 | tr -d ' ')
+            
+            echo "Debug: Final CPU status: $cpu_status"
+            echo "Debug: Final GPU status: $gpu_status"
+            
+            if [[ "$cpu_status" == "COMPLETED" && "$gpu_status" == "COMPLETED" ]]; then
+                if [[ -d "$STRUCT" && -f "$STRUCT/ranked_0.pdb" ]]; then
+                    update_status "completed"
+                    exit 0
+                fi
+            fi
+            
+            echo "Debug: Job completion check failed"
+            echo "Debug: Checking logs..."
+            cat "$LOGDIR/$JOB_NAME/${JOB_NAME}_cpu_${cpu_id}.log" 2>/dev/null
+            cat "$LOGDIR/$JOB_NAME/${JOB_NAME}_gpu_${gpu_id}.log" 2>/dev/null
+            update_status "failed"
+            exit 1
+        fi
+        
+        sleep 60
+    done
+}
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-
 
 STORAGE_BASE="/storage"
 ICDS_BASE="$STORAGE_BASE/icds/RISE/sw8/alphafold/alphafold_2.3_db"
 
-CURRENT_DATE=$(date +"%Y%m%d_%H%M%S")
+CURRENT_DATE="$RUN_ID"
 RUN_DIR="$WORKINGDIR/run_${CURRENT_DATE}"
 
 CPU_OUTPUT="$RUN_DIR/CPU-SLURM"
@@ -122,9 +162,9 @@ cat <<EOF > "$GPU_SLURM_SCRIPT"
 #SBATCH --ntasks=8
 #SBATCH --mem=60GB
 #SBATCH --gpus=1
-#SBATCH --time=8:00:00
+#SBATCH --time=10:00:00
 #SBATCH --account=$rc_account
-#SBATCH -p sla-prio,burst
+#SBATCH -p sla-prio
 #SBATCH --exclude=p-gc-3024
 #SBATCH --output=$LOGDIR/$JOB_NAME/${JOB_NAME}_gpu_%j.log
 #SBATCH --dependency=afterok:$CPU_JOB_ID
@@ -142,6 +182,9 @@ GPU_JOB_ID=$(sbatch "$GPU_SLURM_SCRIPT" | awk '{print $4}') || handle_error "Fai
 echo "Debug: GPU job submitted with ID: $GPU_JOB_ID"
 
 echo "Debug: All jobs submitted successfully"
+
+echo "Debug: Starting job monitoring"
+monitor_jobs "$CPU_JOB_ID" "$GPU_JOB_ID"
 
 check_job_completion() {
     local job_id=$1
@@ -162,25 +205,39 @@ while true; do
     CPU_STATE=$(squeue -j "$CPU_JOB_ID" -h -o %t 2>/dev/null)
     GPU_STATE=$(squeue -j "$GPU_JOB_ID" -h -o %t 2>/dev/null)
     
-    # If jobs are no longer in queue, check their completion status
+    echo "Debug: CPU Job State: $CPU_STATE, GPU Job State: $GPU_STATE"
+    
     if [[ -z "$CPU_STATE" && -z "$GPU_STATE" ]]; then
+
+        sleep 10
+        
         cpu_status=$(check_job_completion "$CPU_JOB_ID")
         gpu_status=$(check_job_completion "$GPU_JOB_ID")
         
-        # Both jobs completed successfully
+        echo "Debug: CPU completion status: $cpu_status"
+        echo "Debug: GPU completion status: $gpu_status"
+        
         if [[ $cpu_status -eq 0 && $gpu_status -eq 0 ]]; then
             echo "Both jobs completed successfully"
-            update_status "completed"
-            exit 0
-        # At least one job failed
+
+            if [[ -d "$STRUCT" && -f "$STRUCT/ranked_0.pdb" ]]; then
+                echo "Output files found in $STRUCT"
+                update_status "completed"
+                exit 0
+            else
+                echo "Output files not found in $STRUCT"
+                update_status "failed"
+                exit 1
+            fi
+
         elif [[ $cpu_status -eq 1 || $gpu_status -eq 1 ]]; then
             echo "One or both jobs failed"
+            echo "CPU job log:"
+            cat "$LOGDIR/$JOB_NAME/${JOB_NAME}_cpu_${CPU_JOB_ID}.log" 2>/dev/null
+            echo "GPU job log:"
+            cat "$LOGDIR/$JOB_NAME/${JOB_NAME}_gpu_${GPU_JOB_ID}.log" 2>/dev/null
             update_status "failed"
             exit 1
-        # Jobs are still in a transitional state
-        else
-            sleep 60
-            continue
         fi
     fi
     
