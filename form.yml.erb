@@ -16,7 +16,7 @@ attributes:
     
   session_type:
     label: "Protein Prediction Engine"
-    help: "NOTE: AlphaFold is more accurate, ESMFold is faster"
+    help: "NOTE: Only AlphaFold is currently supported. ESMFold and RFDiffusion will be coming soon!"
     widget: select
     options:
       - ["AlphaFold", "AlphaFold"]
@@ -33,6 +33,7 @@ attributes:
 
   working_directory:
     label: "Working Directory"
-    help: "Select or enter the path for the working directory"
+    help: "Select or enter the path for the working directory. This is the directory where the output files will be saved."
     widget: "path_selector"
     show_files: false
+    value: "/scratch/<%= ENV['USER'] %>"
