@@ -1,7 +1,7 @@
 # ICDS-Roar-OOD
 
 ## Description
-This project provides a web-based interface for running protein structure prediction jobs using AlphaFold on the ICDS Roar cluster via Open OnDemand.
+This project provides a web-based interface for running protein structure prediction jobs using AlphaFold on the ICDS Roar cluster via Open OnDemand v3.
 
 ## Features
 - Supports AlphaFold prediction engine
