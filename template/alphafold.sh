@@ -140,7 +140,7 @@ cat <<EOF > "${GPU_SLURM_SCRIPT}"
 #SBATCH --output=${LOGDIR}/${JOB_NAME}/${JOB_NAME}_gpu_%j.log
 #SBATCH --dependency=afterok:${CPU_JOB_ID}
 
-time python ${ALPHAFOLD_GPU_SCRIPT} \
+time python3 ${ALPHAFOLD_GPU_SCRIPT} \
     --num_multimer_predictions_per_model=1 \
     --model_preset=multimer \
     --output_dir=${STRUCT} \
