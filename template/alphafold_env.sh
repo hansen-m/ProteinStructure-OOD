@@ -23,5 +23,7 @@ BFD_PATH="${ALPHAFOLD_DB}/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sort
 ALPHAFOLD_CONTAINER="${ALPHAFOLD_BASE}/singularity/alphafold_2.3.2-1.sif"
 ALPHAFOLD_GPU_SCRIPT="${ALPHAFOLD_BASE}/scripts/run/run_alphafold-gpu_2.3.2.py"
 
+HHBLITS_BINARY_PATH="${ALPHAFOLD_BASE}/hh-suite/bin/hhblits"
+
 JOB_NAME="alphafold_job_${USER}"
 FASTA_FILE="${CPU_OUTPUT}/input.fasta"

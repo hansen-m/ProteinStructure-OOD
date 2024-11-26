@@ -94,7 +94,7 @@ echo "Debug: Contents of input FASTA:"
 cat ${FASTA_FILE}
 
 time singularity run \
-    -B "${ICDS_BASE}" \
+    -B "${ALPHAFOLD_DB}" \
     -B "${WORKINGDIR}" \
     -B "/tmp" \
     -B "${CPU_OUTPUT}" \
@@ -115,7 +115,7 @@ time singularity run \
     --db_preset=full_dbs \
     --model_preset=multimer \
     --use_precomputed_msas=True \
-    --hhblits_binary_path=/storage/icds/RISE/sw8/alphafold/hh-suite/bin/hhblits \
+    --hhblits_binary_path=${HHBLITS_BINARY_PATH} \
     --logtostderr
 EOF
 
