@@ -3,13 +3,9 @@ set -e
 
 echo "Starting AlphaFold workflow at $(date)"
 
-chmod +x "${BASH_SOURCE%/*}/alphafold.sh"
-
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
-storage_base="/storage"
-icds_base="${storage_base}/icds/RISE/sw8/alphafold/alphafold_2.3_db"
-
+export SESSIONDIR=<%= session.staged_root %>
 export WORKINGDIR="<%= context.working_directory %>"
 
 <%- if context.session_type == "AlphaFold" -%>
@@ -24,7 +20,8 @@ echo "Debug: Using status file: $STATUS_FILE"
 
 # Add debug information for the srun command
 echo "Debug: Launching srun command at $(date)"
-srun --export=ALL bash "${BASH_SOURCE%/*}/alphafold.sh" $'<%= context.input_sequence.to_s.gsub("\n","\\n").gsub("'", "'\\''") %>' $USER $WORKINGDIR "<%= context.auto_accounts %>" "$STATUS_FILE" "$RUN_ID" &
+source ${WORKINGDIR}/alphafold_env.sh
+srun --export=ALL bash "${SESSIONDIR}/alphafold.sh" $'<%= context.input_sequence.to_s.gsub("\n","\\n").gsub("'", "'\\''") %>' $USER $WORKINGDIR "<%= context.auto_accounts %>" "$STATUS_FILE" "$RUN_ID" &
 ALPHAFOLD_PID=$!
 
 echo "Debug: AlphaFold process launched with PID: $ALPHAFOLD_PID"
@@ -85,7 +82,8 @@ done
 
 <%- elsif context.session_type == "ESMFold" -%>
 echo "running $USER"
-srun --export=ALL bash esmfold.sh $USER
+source ${WORKINGDIR}/esmfold_env.sh
+srun --export=ALL bash "${SESSIONDIR}/esmfold.sh" $USER
 <%- else -%>
 echo "Invalid session type. Exiting"
 <%- end -%>
