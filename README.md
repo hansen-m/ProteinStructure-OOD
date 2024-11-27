@@ -32,7 +32,7 @@ This project provides a web-based interface for running protein structure predic
 ## Prerequisites
 
 ### Database Setup
-AlphaFold requires several genetic databases. These must be downloaded and set up before using the app. Download databases using the script from AlphaFold repository:
+AlphaFold requires several genetic databases. These must be downloaded and set up before using the app. Download databases using the script from AlphaFold repository: https://github.com/google-deepmind/alphafold
 
 ### Singularity Container
 The app uses a Singularity container for AlphaFold execution:
