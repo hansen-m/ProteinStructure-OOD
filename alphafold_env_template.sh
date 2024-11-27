@@ -10,7 +10,7 @@ export RUN_DIR="${WORKINGDIR}/run_${CURRENT_DATE}"
 
 export CPU_OUTPUT="${RUN_DIR}/CPU-SLURM"
 export GPU_OUTPUT="${RUN_DIR}/GPU-SLURM"
-export STRUCT="${RUN_DIR}/DESIGN-ESM"
+export STRUCT="${RUN_DIR}"
 export LOGDIR="${RUN_DIR}/logs"
 
 export UNIREF90_PATH="${ALPHAFOLD_DB}/uniref90/uniref90.fasta"
