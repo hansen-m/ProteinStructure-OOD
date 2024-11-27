@@ -11,7 +11,7 @@ This project provides a web-based interface for running protein structure predic
   - Automated MSA generation and template search
   
 - **Job Management**:
-  - Two-phase execution (CPU phase for MSA/templates, GPU phase for prediction)
+  - Two-phase execution (CPU phase for MSA/templates, GPU phase for prediction set as a dependency)
   - Real-time job status monitoring
   - Detailed progress tracking for both phases
   - Automatic error handling and recovery
