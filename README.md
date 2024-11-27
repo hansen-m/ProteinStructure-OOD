@@ -62,7 +62,6 @@ The app accepts protein sequences in FASTA format.
 The app generates the following output structure:
 
 ```
-plaintext
 working_directory/
 └── run_YYYYMMDD_HHMMSS/
 ├── input/
