@@ -42,7 +42,7 @@ Download from Sylabs (https://cloud.sylabs.io/library/prehensilecode/alphafold_s
 ## Installation
 
 1. Clone this repository into your Open OnDemand apps directory.
-2. 2. Configure paths in `template/alphafold_env.sh`
+2. Configure paths in `template/alphafold_env.sh`
 
 ## Usage
 
