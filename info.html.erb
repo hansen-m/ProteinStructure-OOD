@@ -36,7 +36,7 @@
   <h4>Protein Structure Prediction Job Information</h4>
   
   <% 
-  def get_job_ids(session_id)
+  def get_job_ids(session_id, session_type)
     output_log_path = staged_root.join('output.log')
     return nil unless File.exist?(output_log_path)
   
@@ -45,6 +45,117 @@
     gpu_id = log_content.match(/GPU job submitted with ID: (\d+)/)&.captures&.first
     
     return { cpu_id: cpu_id, gpu_id: gpu_id }
+  end
+
+  def get_job_status(working_dir, session_id, session_type)
+    return {
+      phase: 'Queued',
+      progress: 0,
+      details: [],
+      cpu_log_content: '',
+      gpu_log_content: '',
+      script_status: 'queued',
+      session_type: session_type
+    } unless working_dir
+  
+    output_log_path = staged_root.join('output.log')
+    return {
+      phase: 'Initializing',
+      progress: 0,
+      details: ['Session starting...'],
+      cpu_log_content: '',
+      gpu_log_content: '',
+      script_status: 'initializing',
+      session_type: session_type
+    } unless File.exist?(output_log_path)
+  
+    log_content = File.read(output_log_path)
+    run_id_match = log_content.match(/job_status_(\d{8}_\d{6})\.txt/)
+    return {
+      phase: 'Initializing',
+      progress: 0,
+      details: ['Waiting for job initialization...'],
+      cpu_log_content: '',
+      gpu_log_content: '',
+      script_status: 'initializing',
+      session_type: session_type
+    } unless run_id_match
+  
+    run_id = run_id_match[1]
+    status_file = "#{working_dir}/job_status_#{run_id}.txt"
+    run_dir = "#{working_dir}/run_#{run_id}"
+      
+    job_ids = get_job_ids(session_id, session_type)
+      
+    script_status = File.exist?(status_file) ? File.read(status_file).strip : 'unknown'
+      
+    status = {
+      phase: 'Unknown',
+      progress: 0,
+      details: [],
+      cpu_log_content: '',
+      gpu_log_content: '',
+      script_status: script_status,
+      run_dir: run_dir,
+      session_type: session_type
+    }
+  
+    if job_ids
+      if session_type == 'AlphaFold 2'
+        job_name = "alphafold_job_#{ENV['USER']}"
+        log_dir = "#{run_dir}/logs/#{job_name}"
+        
+        if File.directory?(log_dir)
+          cpu_log = Dir.glob("#{log_dir}/*_cpu_#{job_ids[:cpu_id]}.log").first
+          gpu_log = Dir.glob("#{log_dir}/*_gpu_#{job_ids[:gpu_id]}.log").first
+          
+          if cpu_log && File.exist?(cpu_log)
+            status[:cpu_log_content] = File.read(cpu_log)
+            if status[:cpu_log_content].include?('Starting CPU job')
+              cpu_status = get_cpu_phase_progress(status[:cpu_log_content])
+              status[:phase] = cpu_status[:phase]
+              status[:progress] = cpu_status[:progress]
+              status[:details].concat(cpu_status[:details])
+            end
+          end
+          
+          if gpu_log && File.exist?(gpu_log)
+            status[:gpu_log_content] = File.read(gpu_log)
+            if status[:gpu_log_content].include?('Running model')
+              gpu_status = get_gpu_phase_progress(status[:gpu_log_content])
+              status[:phase] = gpu_status[:phase]
+              status[:progress] = gpu_status[:progress]
+              status[:details].concat(gpu_status[:details])
+            end
+          end
+        end
+      elsif session_type == 'AlphaFold 3'
+        log_dir = "#{run_dir}/logs/#{run_id}"
+  
+        cpu_log = "#{log_dir}/cpu_job_#{run_id}.log"
+        gpu_log = "#{log_dir}/gpu_job_#{run_id}.log"
+        
+        if File.exist?(cpu_log)
+          status[:cpu_log_content] = File.read(cpu_log)
+          if status[:cpu_log_content].include?('Starting AlphaFold 3 CPU job')
+            status[:phase] = 'CPU Phase'
+          elsif status[:cpu_log_content].include?('Failed to submit CPU job')
+            status[:phase] = 'CPU Job Submission Failed'
+          end
+        end
+        
+        if File.exist?(gpu_log)
+          status[:gpu_log_content] = File.read(gpu_log)
+          if status[:gpu_log_content].include?('Starting AlphaFold 3 GPU job')
+            status[:phase] = 'GPU Phase'
+          elsif status[:gpu_log_content].include?('Failed to submit GPU job')
+            status[:phase] = 'GPU Job Submission Failed'
+          end
+        end
+      end
+    end
+      
+    status
   end
 
   def get_cpu_phase_progress(log_content)
@@ -144,108 +255,32 @@
     }
   end
 
-  def get_job_status(working_dir, session_id)
-    return {
-      phase: 'Queued',
-      progress: 0,
-      details: [],
-      cpu_log_content: '',
-      gpu_log_content: '',
-      script_status: 'queued'
-    } unless working_dir
-
-    output_log_path = staged_root.join('output.log')
-    return {
-      phase: 'Initializing',
-      progress: 0,
-      details: ['Session starting...'],
-      cpu_log_content: '',
-      gpu_log_content: '',
-      script_status: 'initializing'
-    } unless File.exist?(output_log_path)
-
-    log_content = File.read(output_log_path)
-    run_id_match = log_content.match(/job_status_(\d{8}_\d{6})\.txt/)
-    return {
-      phase: 'Initializing',
-      progress: 0,
-      details: ['Waiting for job initialization...'],
-      cpu_log_content: '',
-      gpu_log_content: '',
-      script_status: 'initializing'
-    } unless run_id_match
-
-    run_id = run_id_match[1]
-    status_file = "#{working_dir}/job_status_#{run_id}.txt"
-    run_dir = "#{working_dir}/run_#{run_id}"
-    
-    job_ids = get_job_ids(session_id)
-    
-    script_status = File.exist?(status_file) ? File.read(status_file).strip : 'unknown'
-    
-    status = {
-      phase: 'Unknown',
-      progress: 0,
-      details: [],
-      cpu_log_content: '',
-      gpu_log_content: '',
-      script_status: script_status,
-      run_dir: run_dir
-    }
-
-    if job_ids
-      job_name = "alphafold_job_#{ENV['USER']}"
-      log_dir = "#{run_dir}/logs/#{job_name}"
-      
-      if File.directory?(log_dir)
-        cpu_log = Dir.glob("#{log_dir}/*_cpu_#{job_ids[:cpu_id]}.log").first
-        gpu_log = Dir.glob("#{log_dir}/*_gpu_#{job_ids[:gpu_id]}.log").first
-        
-        if cpu_log && File.exist?(cpu_log)
-          status[:cpu_log_content] = File.read(cpu_log)
-          if status[:cpu_log_content].include?('Starting CPU job')
-            cpu_status = get_cpu_phase_progress(status[:cpu_log_content])
-            status[:phase] = cpu_status[:phase]
-            status[:progress] = cpu_status[:progress]
-            status[:details].concat(cpu_status[:details])
-          end
-        end
-        
-        if gpu_log && File.exist?(gpu_log)
-          status[:gpu_log_content] = File.read(gpu_log)
-          if status[:gpu_log_content].include?('Running model')
-            gpu_status = get_gpu_phase_progress(status[:gpu_log_content])
-            status[:phase] = gpu_status[:phase]
-            status[:progress] = gpu_status[:progress]
-            status[:details].concat(gpu_status[:details])
-          end
-        end
-      end
-    end
-    
-    status
-  end
-  
   working_dir = @user_context["working_directory"]
-  status = get_job_status(working_dir, @id)  
+  session_type = @user_context["session_type"]
+  status = get_job_status(working_dir, @id, session_type)  
   %>
+
+  <small class="text-muted">The prediction engine utilized for this job is <strong><%= session_type %></strong>, developed by <a href="https://deepmind.google/technologies/alphafold/" target="_blank">DeepMind Technologies Limited</a>.</small>
 
   <div class="job-status">
     <h5>Current Status</h5>
     <p>Phase: <%= status[:phase] %></p>
-    <div class="progress">
-      <div class="progress-bar" role="progressbar" style="width: <%= status[:progress] %>%">
-        <%= status[:progress] %>%
+
+    <% if status[:session_type] == 'AlphaFold 2' %>
+      <div class="progress">
+        <div class="progress-bar" role="progressbar" style="width: <%= status[:progress] %>%">
+          <%= status[:progress] %>%
+        </div>
       </div>
-    </div>
-    
-    <% if status[:details].any? %>
-      <h5>Details</h5>
-      <ul>
-        <% status[:details].each do |detail| %>
-          <li><%= detail %></li>
-        <% end %>
-      </ul>
+      
+      <% if status[:details].any? %>
+        <h5>Details</h5>
+        <ul>
+          <% status[:details].each do |detail| %>
+            <li><%= detail %></li>
+          <% end %>
+        </ul>
+      <% end %>
     <% end %>
 
     <% if status[:cpu_log_content].present? %>
@@ -278,54 +313,103 @@
         <i class="fa fa-external-link"></i>
       </a>
     </p>
-    <p>Output files will include:</p>
-    <ul>
-      <li>PDB structures: 
-        <% if File.exist?("#{status[:run_dir]}/input/ranked_0.pdb") %>
-          <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/input/ranked_0.pdb?download=1" class="btn btn-sm btn-primary">
-            <i class="fa fa-download"></i> Download Best Model
-          </a>
-        <% else %>
-          <span class="text-muted">ranked_*.pdb files will be available in input/ when the GPU phase completes</span>
-        <% end %>
-      </li>
-      
-      <li>MSA files: 
-        <% if status[:phase].include?("GPU Phase") || status[:script_status] == "completed" %>
-          <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/input/msas" target="_blank">
-            <%= status[:run_dir] %>/input/msas/
+
+    <% if status[:session_type] == 'AlphaFold 2' %>
+      <p>Output files will include:</p>
+      <ul>
+        <li>PDB structures: 
+          <% if File.exist?("#{status[:run_dir]}/input/ranked_0.pdb") %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/input/ranked_0.pdb?download=1" class="btn btn-sm btn-primary">
+              <i class="fa fa-download"></i> Download Best Model
+            </a>
+          <% else %>
+            <span class="text-muted">ranked_*.pdb files will be available in input/ when the GPU phase completes</span>
+          <% end %>
+        </li>
+        
+        <li>MSA files: 
+          <% if status[:phase].include?("GPU Phase") || status[:script_status] == "completed" %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/input/msas" target="_blank">
+              <%= status[:run_dir] %>/input/msas/
+              <i class="fa fa-external-link"></i>
+            </a>
+          <% else %>
+            <span class="text-muted">MSA files will be available in input/msas/ after CPU phase completes</span>
+          <% end %>
+        </li>
+        
+        <li>Log files: 
+          <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/logs" target="_blank">
+            <%= status[:run_dir] %>/logs/
             <i class="fa fa-external-link"></i>
           </a>
-        <% else %>
-          <span class="text-muted">MSA files will be available in input/msas/ after CPU phase completes</span>
-        <% end %>
-      </li>
-      
-      <li>Log files: 
-        <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/logs" target="_blank">
-          <%= status[:run_dir] %>/logs/
-          <i class="fa fa-external-link"></i>
-        </a>
-      </li>
-      
-      <li>Prediction results: 
-        <% if Dir.glob("#{status[:run_dir]}/input/result_*.pkl").any? %>
-          <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/input?download=1&files[]=result_model_1.pkl" class="btn btn-sm btn-primary">
-            <i class="fa fa-download"></i> Download Results
+        </li>
+        
+        <li>Prediction results: 
+          <% if Dir.glob("#{status[:run_dir]}/input/result_*.pkl").any? %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/input?download=1&files[]=result_model_1.pkl" class="btn btn-sm btn-primary">
+              <i class="fa fa-download"></i> Download Results
+            </a>
+          <% else %>
+            <span class="text-muted">result_*.pkl files will be available in input/ when the GPU phase completes</span>
+          <% end %>
+        </li>
+      </ul>
+    <% elsif status[:session_type] == 'AlphaFold 3' %>
+      <p>Output files will include:</p>
+      <ul>
+        <li>PDB structures: 
+          <% if File.exist?("#{status[:run_dir]}/structure/ranked_0.pdb") %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/structure/ranked_0.pdb?download=1" class="btn btn-sm btn-primary">
+              <i class="fa fa-download"></i> Download Best Model
+            </a>
+          <% else %>
+            <span class="text-muted">ranked_*.pdb files will be available in structure/ when the GPU phase completes</span>
+          <% end %>
+        </li>
+        
+        <li>MSA files: 
+          <% if status[:phase] == "GPU Phase" || status[:script_status] == "completed" %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/input" target="_blank">
+              <%= status[:run_dir] %>/input/
+              <i class="fa fa-external-link"></i>
+            </a>
+          <% else %>
+            <span class="text-muted">MSA and JSON files will be available in input/ after CPU phase completes</span>
+          <% end %>
+        </li>
+        
+        <li>Log files: 
+          <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/logs" target="_blank">
+            <%= status[:run_dir] %>/logs/
+            <i class="fa fa-external-link"></i>
           </a>
-        <% else %>
-          <span class="text-muted">result_*.pkl files will be available in input/ when the GPU phase completes</span>
-        <% end %>
-      </li>
-    </ul>
+        </li>
+        
+        <li>Prediction results: 
+          <% if Dir.glob("#{status[:run_dir]}/structure/result_*.pkl").any? %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/structure?download=1&files[]=result_model_1.pkl" class="btn btn-sm btn-primary">
+              <i class="fa fa-download"></i> Download Results
+            </a>
+          <% else %>
+            <span class="text-muted">result_*.pkl files will be available in structure/ when the GPU phase completes</span>
+          <% end %>
+        </li>
+      </ul>
+    <% end %>
 
     <% if status[:script_status] == "completed" %>
       <div class="alert alert-success">
         <h5>Job Completed Successfully!</h5>
-        <p>All output files are now available in the input/ directory.</p>
-        <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/input" class="btn btn-primary" target="_blank">
+        <p>All output files are now available in the output directories.</p>
+        <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>" class="btn btn-primary" target="_blank">
           <i class="fa fa-folder-open"></i> Browse All Files
         </a>
+      </div>
+    <% elsif status[:script_status] == "failed" %>
+      <div class="alert alert-danger">
+        <h5>Job Failed</h5>
+        <p>Please check the logs for more details.</p>
       </div>
     <% end %>
   <% else %>
