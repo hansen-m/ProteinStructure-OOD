@@ -63,13 +63,13 @@ The app generates the following output structure:
 ```
 working_directory/
 └── run_YYYYMMDD_HHMMSS/
-├── input/
-│ ├── ranked_.pdb # Predicted structures
-│ ├── result_model_.pkl # Detailed predictions
-│ └── msas/ # Multiple sequence alignments
-├── logs/ # Job logs
-├── CPU-SLURM/ # CPU phase files
-└── GPU-SLURM/ # GPU phase files
+  ├── input/
+  │ ├── ranked_.pdb # Predicted structures
+  │ ├── result_model_.pkl # Detailed predictions
+  │ └── msas/ # Multiple sequence alignments
+  ├── logs/ # Job logs
+  ├── CPU-SLURM/ # CPU phase files
+  └── GPU-SLURM/ # GPU phase files
 ```
 - PDB structures (ranked_0.pdb being the highest-confidence model)
 - MSA files
