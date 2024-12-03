@@ -11,7 +11,7 @@ This project provides a web-based interface for running protein structure predic
   - Automated MSA generation and template search
   
 - **Job Management**:
-  - Two-phase execution (CPU phase for MSA/templates, GPU phase for prediction)
+  - Two-phase execution (CPU phase for MSA/templates, GPU phase for prediction set as a dependency)
   - Real-time job status monitoring
   - Detailed progress tracking for both phases
   - Automatic error handling and recovery
@@ -32,7 +32,7 @@ This project provides a web-based interface for running protein structure predic
 ## Prerequisites
 
 ### Database Setup
-AlphaFold requires several genetic databases. These must be downloaded and set up before using the app. Download databases using the script from AlphaFold repository:
+AlphaFold requires several genetic databases. These must be downloaded and set up before using the app. Download databases using the script from AlphaFold repository: https://github.com/google-deepmind/alphafold
 
 ### Singularity Container
 The app uses a Singularity container for AlphaFold execution:
@@ -42,7 +42,7 @@ Download from Sylabs (https://cloud.sylabs.io/library/prehensilecode/alphafold_s
 ## Installation
 
 1. Clone this repository into your Open OnDemand apps directory.
-2. 2. Configure paths in `template/alphafold_env.sh`
+2. Configure paths in `template/alphafold_env.sh`
 
 ## Usage
 
@@ -70,7 +70,6 @@ working_directory/
 ├── logs/ # Job logs
 ├── CPU-SLURM/ # CPU phase files
 └── GPU-SLURM/ # GPU phase files
-
 
 - PDB structures (ranked_0.pdb being the highest-confidence model)
 - MSA files
