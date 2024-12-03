@@ -60,7 +60,7 @@ The app accepts protein sequences in FASTA format.
 
 ### Output Files
 The app generates the following output structure:
-
+```
 working_directory/
 └── run_YYYYMMDD_HHMMSS/
 ├── input/
@@ -70,7 +70,7 @@ working_directory/
 ├── logs/ # Job logs
 ├── CPU-SLURM/ # CPU phase files
 └── GPU-SLURM/ # GPU phase files
-
+```
 - PDB structures (ranked_0.pdb being the highest-confidence model)
 - MSA files
 - result_model_*.pkl files containing detailed output and confidence scores
