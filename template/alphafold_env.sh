@@ -23,7 +23,7 @@ export UNIREF30_PATH="${ALPHAFOLD_DB}/uniref30/UniRef30_2021_03"
 export BFD_PATH="${ALPHAFOLD_DB}/bfd/bfd_metaclust_clu_complete_id30_c90_final_seq.sorted_opt"
 
 export ALPHAFOLD_CONTAINER="${ALPHAFOLD_BASE}/singularity/alphafold_2.3.2-1.sif"
-export ALPHAFOLD_GPU_SCRIPT="${ALPHAFOLD_BASE}/scripts/run/run_alphafold-gpu_2.3.2.py"
+export ALPHAFOLD_GPU_SCRIPT="${SESSIONDIR}/run_alphafold-gpu_2.3.2.py"
 
 export HHBLITS_BINARY_PATH="${ALPHAFOLD_BASE}/hh-suite/bin/hhblits"
 
