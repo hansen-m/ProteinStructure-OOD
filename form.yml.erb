@@ -7,7 +7,6 @@ form:
   - auto_accounts
   - working_directory
   - protein_sequence
-  - use_fasta_af3
   - agree_terms
 
 attributes:
@@ -16,7 +15,7 @@ attributes:
     help: "NOTE: Only AlphaFold 2 and 3 are currently supported. ESMFold and RFDiffusion will be coming soon!"
     widget: select
     options:
-      - ["AlphaFold 2", "AlphaFold 2", data-hide-use-fasta-af3: true]
+      - ["AlphaFold 2", "AlphaFold 2"]
       - ["AlphaFold 3", "AlphaFold 3"]
 
   protein_sequence:
@@ -24,11 +23,6 @@ attributes:
     label: "Input Sequence"
     rows: 5
     help: "Enter the input sequence."
-
-  use_fasta_af3:
-    widget: check_box
-    label: "Use FASTA format instead"
-    help: "Check this box if you want to input the biological sequence in FASTA format instead of JSON."
 
   agree_terms:
     label: "I agree to Google's Terms of Service"
