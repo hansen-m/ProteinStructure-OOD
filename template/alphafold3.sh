@@ -1,12 +1,11 @@
 #!/bin/bash
 
-SEQ="${1}"
-JSON_INPUT="${2}"
-USER="${3}" 
-WORKINGDIR="${4}"
-ACCOUNT="${5}"
-STATUS_FILE="${6}"
-RUN_ID="${7}"
+JSON_INPUT_FILE="${1}"
+USER="${2}" 
+WORKINGDIR="${3}"
+ACCOUNT="${4}"
+STATUS_FILE="${5}"
+RUN_ID="${6}"
 
 update_status() {
     echo "${1}" > "${STATUS_FILE}"
@@ -28,7 +27,7 @@ STRUCT="${RUN_DIR}/structure"
 LOGDIR="${RUN_DIR}/logs/${RUN_ID}"
 JSON_DIR="${INPUT_DIR}"
 
-AF3_CONTAINER="/storage/icds/RISE/sw8/alphafold3/singularity/alphafold3_241202.sif"
+AF3_CONTAINER="/storage/group/u1o/default/wkl2/CONTAINER/alphafold3_241202.sif"
 AF3_WEIGHTS="/storage/group/u1o/default/wkl2/CONTAINER/alphafold3_weights"
 AF3_DB="/storage/icds/RISE/sw8/alphafold3/alphafold3/databases"
 
@@ -38,100 +37,56 @@ mkdir -p "${GPU_OUTPUT}" || handle_error "Failed to create GPU output directory"
 mkdir -p "${STRUCT}" || handle_error "Failed to create structure directory"
 mkdir -p "${LOGDIR}" || handle_error "Failed to create log directory"
 
-FASTA_FILE="${INPUT_DIR}/input.fa"
 JSON_FILE="${INPUT_DIR}/input.json"
 
-if [ -n "${SEQ}" ]; then
-    echo "Debug: Received FASTA sequence"
-    echo "${SEQ}" > "${FASTA_FILE}" || handle_error "Failed to write sequence to FASTA file"
-
-    echo "Debug: Converting FASTA to JSON"
-    convert_fasta_to_json() {
-        local fasta_file="$1"
-        local json_file="$2"
-
-        local name
-        name=$(basename "$fasta_file" .fa)
-        
-        local sequences
-        sequences=$(grep -v "^>" "$fasta_file" | tr -d ' \n')
-        
-        local seq_count
-        seq_count=$(grep -c "^>" "$fasta_file")
-        
-        local chain_ids
-        if [ "$seq_count" -gt 1 ]; then
-            chain_ids="["
-            for i in $(seq 1 "$seq_count"); do
-                chain_id=$(printf '%c' $((64 + i)))  
-                if [ "$i" -eq 1 ]; then
-                    chain_ids="${chain_ids}\"${chain_id}\""
-                else
-                    chain_ids="${chain_ids}, \"${chain_id}\""
-                fi
-            done
-            chain_ids="${chain_ids}]"
-        else
-            chain_ids='["A"]'
-        fi
-        
-        cat > "$json_file" <<EOF
-{
-    "name": "${name}",
-    "modelSeeds": [1, 2, 3],
-    "sequences": [
-        {
-            "protein": {
-                "id": ${chain_ids},
-                "sequence": "${sequences}"
-            }
-        }
-    ],
-    "dialect": "alphafold3",
-    "version": 1
-}
-EOF
-    }
-    convert_fasta_to_json "${FASTA_FILE}" "${JSON_FILE}" || handle_error "Failed to convert FASTA to JSON"
-
-elif [ -n "${JSON_INPUT}" ]; then
-    echo "Debug: Received JSON input"
-    echo "${JSON_INPUT}" > "${JSON_FILE}" || handle_error "Failed to write JSON input to file"
+if [ -f "${JSON_INPUT_FILE}" ]; then
+    echo "Debug: Received JSON input file"
+    cp "${JSON_INPUT_FILE}" "${JSON_FILE}" || handle_error "Failed to copy JSON input file"
 else
-    handle_error "No valid input provided"
+    handle_error "No valid JSON input file provided"
 fi
 
 echo "Debug: JSON input ready at ${JSON_FILE}"
 
+# Extract the 'name' field from the input JSON using Python as a fallback
+NAME=$(python3 -c "import json; print(json.load(open('${JSON_FILE}'))['name'])") || handle_error "Failed to extract 'name' from JSON"
+echo "Debug: Extracted name from JSON input: ${NAME}"
+
+# Create lowercase version of NAME
+NAME_LOWER=$(echo "${NAME}" | tr '[:upper:]' '[:lower:]')
+echo "Debug: Lowercase name: ${NAME_LOWER}"
+
+# Set the path to the generated JSON file using NAME_LOWER
+GENERATED_JSON_FILE="/root/af_output/${NAME_LOWER}/${NAME_LOWER}_data.json"
+echo "Debug: Expected generated JSON file: ${GENERATED_JSON_FILE}"
 # Create CPU SLURM script
 CPU_SLURM_SCRIPT="${CPU_OUTPUT}/cpu_job_${RUN_ID}.slurm"
 cat <<EOF > "${CPU_SLURM_SCRIPT}"
 #!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --ntasks=1                # Number of tasks (keep as 1 if using multithreading within the task)
-#SBATCH --cpus-per-task=32        # Increased CPUs per task for multithreading
-#SBATCH --mem=128GB               # Increased memory allocation
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=128GB
 #SBATCH --time=6:00:00
 #SBATCH --partition=open
 #SBATCH --output=${LOGDIR}/cpu_job_${RUN_ID}.log
 
 echo "Debug: Starting AlphaFold 3 CPU job"
 
-
-singularity exec \
-    --bind ${JSON_DIR}:/root/af_input \
-    --bind ${STRUCT}:/root/af_output \
-    --bind ${AF3_WEIGHTS}:/root/models \
-    --bind ${AF3_DB}:/root/public_databases \
-    ${AF3_CONTAINER} \
-    python3 /app/alphafold/run_alphafold.py \
-    --json_path=/root/af_input/$(basename "${JSON_FILE}") \
-    --model_dir=/root/models \
-    --db_dir=/root/public_databases \
-    --output_dir=/root/af_output \
-    --run_data_pipeline=true \
-    --run_inference=false \
-    --jackhmmer_n_cpu=32 \
+singularity exec \\
+    --bind ${JSON_DIR}:/root/af_input \\
+    --bind ${STRUCT}:/root/af_output \\
+    --bind ${AF3_WEIGHTS}:/root/models \\
+    --bind ${AF3_DB}:/root/public_databases \\
+    ${AF3_CONTAINER} \\
+    python3 /app/alphafold/run_alphafold.py \\
+    --json_path=/root/af_input/\$(basename "${JSON_FILE}") \\
+    --model_dir=/root/models \\
+    --db_dir=/root/public_databases \\
+    --output_dir=/root/af_output \\
+    --run_data_pipeline=true \\
+    --run_inference=false \\
+    --jackhmmer_n_cpu=32 \\
     --nhmmer_n_cpu=32
 
 EOF
@@ -157,22 +112,18 @@ cat <<EOF > "${GPU_SLURM_SCRIPT}"
 
 echo "Debug: Starting AlphaFold 3 GPU job"
 
-singularity exec --nv \
-    --bind ${STRUCT}:/root/af_output \
-    --bind ${AF3_WEIGHTS}:/root/models \
-    --bind ${AF3_DB}:/root/public_databases \
-    ${AF3_CONTAINER} \
-    python3 /app/alphafold/run_alphafold.py \
-    --json_path=/root/af_output/$(basename "${JSON_FILE}" .json)_data.json \
-    --model_dir=/root/models \
-    --db_dir=/root/public_databases \
-    --output_dir=/root/af_output \
-    --run_data_pipeline=false \
+singularity exec --nv \\
+    --bind ${STRUCT}:/root/af_output \\
+    --bind ${AF3_WEIGHTS}:/root/models \\
+    --bind ${AF3_DB}:/root/public_databases \\
+    ${AF3_CONTAINER} \\
+    python3 /app/alphafold/run_alphafold.py \\
+    --json_path=${GENERATED_JSON_FILE} \\
+    --model_dir=/root/models \\
+    --db_dir=/root/public_databases \\
+    --output_dir=/root/af_output \\
+    --run_data_pipeline=false \\
     --run_inference=true
-
-kill \$vmstat_pid
-kill \$nvidia_smi_pid
-end_time=\$(date +%s)
 
 EOF
 
@@ -184,13 +135,13 @@ echo "Debug: GPU job submitted with ID: ${GPU_JOB_ID}"
 monitor_jobs() {
     local cpu_id=${1}
     local gpu_id=${2}
-    
+
     while true; do
         CPU_STATE=$(squeue -j "${cpu_id}" -h -o %t 2>/dev/null)
         GPU_STATE=$(squeue -j "${gpu_id}" -h -o %t 2>/dev/null)
-        
+
         echo "Debug: CPU Job State: ${CPU_STATE}, GPU Job State: ${GPU_STATE}"
-        
+
         if [[ -z "${CPU_STATE}" && -z "${GPU_STATE}" ]]; then
             sleep 10
 
@@ -201,7 +152,12 @@ monitor_jobs() {
             echo "Debug: Final GPU status: ${gpu_status}"
 
             if [[ "${cpu_status}" == "COMPLETED" && "${gpu_status}" == "COMPLETED" ]]; then
-                if [[ -d "${STRUCT}" && -f "${STRUCT}/ranked_0.pdb" ]]; then
+                # Check for the expected AlphaFold 3 output files using NAME_LOWER
+                OUTPUT_DIR="${STRUCT}/${NAME_LOWER}"
+                TOP_MODEL="${OUTPUT_DIR}/${NAME_LOWER}_model.cif"
+                RANKING_FILE="${OUTPUT_DIR}/ranking_scores.csv"
+
+                if [[ -d "${OUTPUT_DIR}" && -f "${TOP_MODEL}" && -f "${RANKING_FILE}" ]]; then
                     update_status "completed"
                     exit 0
                 fi
