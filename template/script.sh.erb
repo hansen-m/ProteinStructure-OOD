@@ -7,16 +7,16 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
 export SESSIONDIR=<%= session.staged_root %>
 export WORKINGDIR="<%= context.working_directory %>"
-
-<%- if context.session_type == "AlphaFold 2" -%>
-# Existing AlphaFold 2 script
-echo "Debug: Session type is AlphaFold 2"
-
 RUN_ID=$(date +"%Y%m%d_%H%M%S")
 STATUS_FILE="${WORKINGDIR}/job_status_${RUN_ID}.txt"
 echo "running" > "$STATUS_FILE"
 
 echo "Debug: Using status file: $STATUS_FILE"
+echo "Debug: Working directory: $WORKINGDIR"
+
+<%- if context.session_type == "AlphaFold 2" -%>
+# Existing AlphaFold 2 script
+echo "Debug: Session type is AlphaFold 2"
 
 # Prepare input sequence
 INPUT_SEQUENCE="<%= context.protein_sequence.to_s %>"
@@ -38,16 +38,16 @@ while true; do
     if ! kill -0 $ALPHAFOLD_PID 2>/dev/null; then
         echo "Debug: AlphaFold 2 process $ALPHAFOLD_PID is no longer running"
         sleep 5
-        
+
         if [[ ! -f "$STATUS_FILE" ]]; then
             echo "Debug: Status file not found, waiting..."
             sleep 30
             continue
         fi
-        
+
         STATUS=$(cat "$STATUS_FILE")
         echo "Debug: Final status from file: $STATUS"
-        
+
         case $STATUS in
             "completed")
                 echo "AlphaFold 2 job completed successfully"
@@ -71,47 +71,40 @@ while true; do
                 ;;
         esac
     fi
-    
+
     if [[ -f "$STATUS_FILE" ]]; then
         STATUS=$(cat "$STATUS_FILE")
         echo "Debug: Current status: $STATUS at $(date)"
-        
+
         if [[ "$STATUS" == "running" ]]; then
             sleep 60
             continue
         fi
     fi
-    
+
     sleep 60
 done
 
 <%- elsif context.session_type == "AlphaFold 3" -%>
 echo "Debug: Session type is AlphaFold 3"
 
-RUN_ID=$(date +"%Y%m%d_%H%M%S")
-STATUS_FILE="${WORKINGDIR}/job_status_${RUN_ID}.txt"
-echo "running" > "$STATUS_FILE"
-
-echo "Debug: Using status file: $STATUS_FILE"
-echo "Debug: Working directory: $WORKINGDIR"
-
-# Prepare input for alphafold3.sh
 GPU_ACCOUNT="<%= context.auto_accounts %>"
-echo "Debug: GPU Account: $GPU_ACCOUNT"
 
-if [ "<%= context.use_fasta_af3 %>" == "1" ]; then
-    echo "Debug: use_fasta_af3 is true. Input is in FASTA format."
-    INPUT_SEQUENCE="<%= context.protein_sequence.to_s %>"
-    JSON_INPUT=""
-else
-    echo "Debug: use_fasta_af3 is false. Input is in JSON format."
-    INPUT_SEQUENCE=""
-    JSON_INPUT="<%= context.protein_sequence.to_s %>"
-fi
+echo "Debug: GPU Account: $GPU_ACCOUNT"
+echo "Debug: Received JSON input"
+
+# Write JSON input to a temporary file
+JSON_INPUT_FILE="${WORKINGDIR}/input_${RUN_ID}.json"
+
+cat << 'EOF' > "${JSON_INPUT_FILE}"
+<%= context.protein_sequence.to_s %>
+EOF
+
+echo "Debug: JSON input written to ${JSON_INPUT_FILE}"
 
 # Launch the AlphaFold 3 job
 srun --export=ALL bash "${SESSIONDIR}/alphafold3.sh" \
-    "$INPUT_SEQUENCE" "$JSON_INPUT" "$USER" "$WORKINGDIR" "$GPU_ACCOUNT" "$STATUS_FILE" "$RUN_ID" &
+    "$JSON_INPUT_FILE" "$USER" "$WORKINGDIR" "$GPU_ACCOUNT" "$STATUS_FILE" "$RUN_ID" &
 ALPHAFOLD_PID=$!
 
 echo "Debug: AlphaFold 3 process launched with PID: $ALPHAFOLD_PID"
@@ -169,10 +162,6 @@ while true; do
     sleep 60
 done
 
-<%- elsif context.session_type == "ESMFold" -%>
-echo "running $USER"
-source ${SESSIONDIR}/esmfold_env.sh
-srun --export=ALL bash "${SESSIONDIR}/esmfold.sh" $USER
 <%- else -%>
 echo "Invalid session type. Exiting"
 <%- end -%>
