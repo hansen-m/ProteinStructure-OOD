@@ -36,6 +36,8 @@
   <h4>Protein Structure Prediction Job Information</h4>
   
   <% 
+  require 'json'
+
   def get_job_ids(session_id, session_type)
     output_log_path = staged_root.join('output.log')
     return nil unless File.exist?(output_log_path)
@@ -152,6 +154,27 @@
             status[:phase] = 'GPU Job Submission Failed'
           end
         end
+
+        json_input_path = "#{run_dir}/input/input.json"
+        if File.exist?(json_input_path)
+          begin
+            json_data = JSON.parse(File.read(json_input_path))
+            job_name = json_data['name'] || "unknown_job"
+            sanitized_job_name = job_name.downcase.gsub(/[^a-z0-9]+/, '_').gsub(/^_+|_+$/, '')
+          rescue JSON::ParserError
+            job_name = "unknown_job"
+            sanitized_job_name = "unknown_job"
+          end
+        else
+          job_name = "unknown_job"
+          sanitized_job_name = "unknown_job"
+        end
+        
+        struct_dir = "#{run_dir}/structure"
+        output_dir = "#{struct_dir}/#{sanitized_job_name}"
+        status[:job_name] = job_name
+        status[:sanitized_job_name] = sanitized_job_name
+        status[:output_dir] = output_dir
       end
     end
       
@@ -358,24 +381,58 @@
     <% elsif status[:session_type] == 'AlphaFold 3' %>
       <p>Output files will include:</p>
       <ul>
-        <li>PDB structures: 
-          <% if File.exist?("#{status[:run_dir]}/structure/ranked_0.pdb") %>
-            <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/structure/ranked_0.pdb?download=1" class="btn btn-sm btn-primary">
+        <li>Predicted Structure (mmCIF format):
+          <% if File.exist?("#{status[:output_dir]}/#{status[:sanitized_job_name]}_model.cif") %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:output_dir] %>/<%= status[:sanitized_job_name] %>_model.cif?download=1" class="btn btn-sm btn-primary">
               <i class="fa fa-download"></i> Download Best Model
             </a>
           <% else %>
-            <span class="text-muted">ranked_*.pdb files will be available in structure/ when the GPU phase completes</span>
+            <span class="text-muted"><%= status[:sanitized_job_name] %>_model.cif file will be available in the output directory when the GPU phase completes</span>
           <% end %>
         </li>
         
-        <li>MSA files: 
-          <% if status[:phase] == "GPU Phase" || status[:script_status] == "completed" %>
-            <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/input" target="_blank">
-              <%= status[:run_dir] %>/input/
+        <li>Confidence Metrics:
+          <% if File.exist?("#{status[:output_dir]}/#{status[:sanitized_job_name]}_confidences.json") %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:output_dir] %>/<%= status[:sanitized_job_name] %>_confidences.json?download=1" target="_blank">
+              View Confidence Metrics
               <i class="fa fa-external-link"></i>
             </a>
           <% else %>
-            <span class="text-muted">MSA and JSON files will be available in input/ after CPU phase completes</span>
+            <span class="text-muted">Confidence metrics will be available in the output directory when the GPU phase completes</span>
+          <% end %>
+        </li>
+        
+        <li>All Predictions:
+          <% if Dir.exist?(status[:output_dir]) && Dir.glob("#{status[:output_dir]}/seed-*").any? %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:output_dir] %>" target="_blank">
+              <%= status[:output_dir] %>/
+              <i class="fa fa-external-link"></i>
+            </a>
+            <p class="text-muted">Contains sub-directories for each seed and sample with detailed outputs.</p>
+          <% else %>
+            <span class="text-muted">Prediction results will be available in the output directory when the GPU phase completes</span>
+          <% end %>
+        </li>
+
+        <li>Input JSON with Added MSA and Template Data:
+          <% if File.exist?("#{status[:output_dir]}/#{status[:sanitized_job_name]}_data.json") %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:output_dir] %>/<%= status[:sanitized_job_name] %>_data.json?download=1" target="_blank">
+              View Input JSON Data
+              <i class="fa fa-external-link"></i>
+            </a>
+          <% else %>
+            <span class="text-muted">Input JSON with MSA and template data will be available in the output directory when the GPU phase completes</span>
+          <% end %>
+        </li>
+
+        <li>Ranking Scores:
+          <% if File.exist?("#{status[:output_dir]}/ranking_scores.csv") %>
+            <a href="/pun/sys/dashboard/files/fs<%= status[:output_dir] %>/ranking_scores.csv?download=1" target="_blank">
+              Download Ranking Scores
+              <i class="fa fa-download"></i>
+            </a>
+          <% else %>
+            <span class="text-muted">Ranking scores will be available in the output directory when the GPU phase completes</span>
           <% end %>
         </li>
         
@@ -384,16 +441,6 @@
             <%= status[:run_dir] %>/logs/
             <i class="fa fa-external-link"></i>
           </a>
-        </li>
-        
-        <li>Prediction results: 
-          <% if Dir.glob("#{status[:run_dir]}/structure/result_*.pkl").any? %>
-            <a href="/pun/sys/dashboard/files/fs<%= status[:run_dir] %>/structure?download=1&files[]=result_model_1.pkl" class="btn btn-sm btn-primary">
-              <i class="fa fa-download"></i> Download Results
-            </a>
-          <% else %>
-            <span class="text-muted">result_*.pkl files will be available in structure/ when the GPU phase completes</span>
-          <% end %>
         </li>
       </ul>
     <% end %>
@@ -416,4 +463,5 @@
     <p>Run directory will be created when the job starts...</p>
   <% end %>
 
+</div>
 </div>
