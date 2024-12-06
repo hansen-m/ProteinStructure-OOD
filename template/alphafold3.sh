@@ -28,7 +28,7 @@ STRUCT="${RUN_DIR}/structure"
 LOGDIR="${RUN_DIR}/logs/${RUN_ID}"
 JSON_DIR="${INPUT_DIR}"
 
-AF3_CONTAINER="/storage/group/u1o/default/wkl2/CONTAINER/alphafold3_241202.sif"
+AF3_CONTAINER="/storage/icds/RISE/sw8/alphafold3/singularity/alphafold3_241202.sif"
 AF3_WEIGHTS="/storage/group/u1o/default/wkl2/CONTAINER/alphafold3_weights"
 AF3_DB="/storage/icds/RISE/sw8/alphafold3/alphafold3/databases"
 
