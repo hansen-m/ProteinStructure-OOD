@@ -48,7 +48,7 @@ fi
 
 echo "Debug: JSON input ready at ${JSON_FILE}"
 
-NAME=$(python3 -c "import json; print(json.load(open('${JSON_FILE}'))['name'])") || handle_error "Failed to extract 'name' from JSON"
+NAME=$(grep -oi '"name": *"[^"]*"' "${JSON_FILE}" | sed 's/"name": *"\([^"]*\)"/\1/I') || handle_error "Failed to extract 'name' from JSON"
 echo "Debug: Extracted name from JSON input: ${NAME}"
 
 NAME_LOWER=$(echo "${NAME}" | tr '[:upper:]' '[:lower:]')
