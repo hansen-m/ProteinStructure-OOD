@@ -15,24 +15,19 @@ echo "Debug: Using status file: $STATUS_FILE"
 echo "Debug: Working directory: $WORKINGDIR"
 
 <%- if context.session_type == "AlphaFold 2" -%>
-# Existing AlphaFold 2 script
 echo "Debug: Session type is AlphaFold 2"
 
-# Prepare input sequence
 INPUT_SEQUENCE="<%= context.protein_sequence.to_s %>"
 echo "Debug: About to run alphafold.sh with sequence: $INPUT_SEQUENCE"
 
-# Load the environment
 source ${SESSIONDIR}/alphafold_env.sh
 
-# Launch the AlphaFold 2 job
 srun --export=ALL bash "${SESSIONDIR}/alphafold.sh" \
     "$INPUT_SEQUENCE" "$USER" "$WORKINGDIR" "<%= context.auto_accounts %>" "$STATUS_FILE" "$RUN_ID" &
 ALPHAFOLD_PID=$!
 
 echo "Debug: AlphaFold 2 process launched with PID: $ALPHAFOLD_PID"
 
-# Monitor the job status
 trap 'echo "Debug: Script received termination signal"; exit 1' SIGTERM SIGINT
 while true; do
     if ! kill -0 $ALPHAFOLD_PID 2>/dev/null; then
@@ -89,11 +84,12 @@ done
 echo "Debug: Session type is AlphaFold 3"
 
 GPU_ACCOUNT="<%= context.auto_accounts %>"
+CUSTOM_SCRIPT="${SESSIONDIR}/singularity_af3/app/alphafold/run_alphafold.py"
 
 echo "Debug: GPU Account: $GPU_ACCOUNT"
+echo "Debug: Custom script path: $CUSTOM_SCRIPT"
 echo "Debug: Received JSON input"
 
-# Write JSON input to a temporary file
 JSON_INPUT_FILE="${WORKINGDIR}/input_${RUN_ID}.json"
 
 cat << 'EOF' > "${JSON_INPUT_FILE}"
@@ -102,14 +98,12 @@ EOF
 
 echo "Debug: JSON input written to ${JSON_INPUT_FILE}"
 
-# Launch the AlphaFold 3 job
-srun --export=ALL bash "${SESSIONDIR}/alphafold3.sh" \
+srun --export=ALL,SESSIONDIR="${SESSIONDIR}",CUSTOM_SCRIPT="${CUSTOM_SCRIPT}" bash "${SESSIONDIR}/alphafold3.sh" \
     "$JSON_INPUT_FILE" "$USER" "$WORKINGDIR" "$GPU_ACCOUNT" "$STATUS_FILE" "$RUN_ID" &
 ALPHAFOLD_PID=$!
 
 echo "Debug: AlphaFold 3 process launched with PID: $ALPHAFOLD_PID"
 
-# Monitor the job status
 trap 'echo "Debug: Script received termination signal"; exit 1' SIGTERM SIGINT
 while true; do
     if ! kill -0 $ALPHAFOLD_PID 2>/dev/null; then

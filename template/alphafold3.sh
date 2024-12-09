@@ -48,18 +48,15 @@ fi
 
 echo "Debug: JSON input ready at ${JSON_FILE}"
 
-# Extract the 'name' field from the input JSON using Python as a fallback
 NAME=$(python3 -c "import json; print(json.load(open('${JSON_FILE}'))['name'])") || handle_error "Failed to extract 'name' from JSON"
 echo "Debug: Extracted name from JSON input: ${NAME}"
 
-# Create lowercase version of NAME
 NAME_LOWER=$(echo "${NAME}" | tr '[:upper:]' '[:lower:]')
 echo "Debug: Lowercase name: ${NAME_LOWER}"
 
-# Set the path to the generated JSON file using NAME_LOWER
 GENERATED_JSON_FILE="/root/af_output/${NAME_LOWER}/${NAME_LOWER}_data.json"
 echo "Debug: Expected generated JSON file: ${GENERATED_JSON_FILE}"
-# Create CPU SLURM script
+
 CPU_SLURM_SCRIPT="${CPU_OUTPUT}/cpu_job_${RUN_ID}.slurm"
 cat <<EOF > "${CPU_SLURM_SCRIPT}"
 #!/bin/bash
@@ -96,7 +93,6 @@ echo "Debug: Created CPU SLURM script"
 CPU_JOB_ID=$(sbatch "${CPU_SLURM_SCRIPT}" | awk '{print $4}') || handle_error "Failed to submit CPU job"
 echo "Debug: CPU job submitted with ID: ${CPU_JOB_ID}"
 
-# Create GPU SLURM script
 GPU_SLURM_SCRIPT="${GPU_OUTPUT}/gpu_job_${RUN_ID}.slurm"
 cat <<EOF > "${GPU_SLURM_SCRIPT}"
 #!/bin/bash
@@ -111,11 +107,13 @@ cat <<EOF > "${GPU_SLURM_SCRIPT}"
 #SBATCH --dependency=afterok:${CPU_JOB_ID}
 
 echo "Debug: Starting AlphaFold 3 GPU job"
+echo "Debug: Custom script path: \${CUSTOM_SCRIPT}"
 
 singularity exec --nv \\
     --bind ${STRUCT}:/root/af_output \\
     --bind ${AF3_WEIGHTS}:/root/models \\
     --bind ${AF3_DB}:/root/public_databases \\
+    --bind "\${CUSTOM_SCRIPT}:/app/alphafold/run_alphafold.py" \\
     ${AF3_CONTAINER} \\
     python3 /app/alphafold/run_alphafold.py \\
     --json_path=${GENERATED_JSON_FILE} \\
@@ -128,6 +126,9 @@ singularity exec --nv \\
 EOF
 
 echo "Debug: Created GPU SLURM script"
+echo "Debug: JSON path: ${GENERATED_JSON_FILE}"
+echo "Debug: Output dir: ${STRUCT}"
+echo "Debug: Model dir: ${AF3_WEIGHTS}"
 
 GPU_JOB_ID=$(sbatch "${GPU_SLURM_SCRIPT}" | awk '{print $4}') || handle_error "Failed to submit GPU job"
 echo "Debug: GPU job submitted with ID: ${GPU_JOB_ID}"
@@ -152,7 +153,6 @@ monitor_jobs() {
             echo "Debug: Final GPU status: ${gpu_status}"
 
             if [[ "${cpu_status}" == "COMPLETED" && "${gpu_status}" == "COMPLETED" ]]; then
-                # Check for the expected AlphaFold 3 output files using NAME_LOWER
                 OUTPUT_DIR="${STRUCT}/${NAME_LOWER}"
                 TOP_MODEL="${OUTPUT_DIR}/${NAME_LOWER}_model.cif"
                 RANKING_FILE="${OUTPUT_DIR}/ranking_scores.csv"
