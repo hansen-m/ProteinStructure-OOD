@@ -7,8 +7,10 @@ export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
 export SESSIONDIR=<%= session.staged_root %>
 export WORKINGDIR="<%= context.working_directory %>"
-RUN_ID=$(date +"%Y%m%d_%H%M%S")
-STATUS_FILE="${WORKINGDIR}/job_status_${RUN_ID}.txt"
+
+# Setup the environment variables
+source ${SESSIONDIR}/alphafold_env.sh
+
 echo "running" > "$STATUS_FILE"
 
 echo "Debug: Using status file: $STATUS_FILE"
@@ -21,9 +23,6 @@ echo "Debug: Session type is AlphaFold 2"
 # Prepare input sequence
 INPUT_SEQUENCE="<%= context.protein_sequence.to_s %>"
 echo "Debug: About to run alphafold.sh with sequence: $INPUT_SEQUENCE"
-
-# Load the environment
-source ${SESSIONDIR}/alphafold_env.sh
 
 # Launch the AlphaFold 2 job
 srun --export=ALL bash "${SESSIONDIR}/alphafold.sh" \

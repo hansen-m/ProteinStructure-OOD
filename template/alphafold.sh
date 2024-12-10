@@ -5,7 +5,7 @@ USER="${2}"
 WORKINGDIR="${3}"
 ACCOUNT="${4}"
 STATUS_FILE="${5}"
-RUN_ID="${6}"
+TIMESTAMP="${6}"
 
 update_status() {
     echo "${1}" > "${STATUS_FILE}"
