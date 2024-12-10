@@ -2,16 +2,20 @@
 
 export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
+export TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+export RUN_DIR="${WORKINGDIR}/run_${TIMESTAMP}"
+export STATUS_FILE="${WORKINGDIR}/job_status_${TIMESTAMP}.txt"
+
+export INPUT_DIR="${RUN_DIR}/input"
+export CPU_OUTPUT="${RUN_DIR}/cpu_output"
+export GPU_OUTPUT="${RUN_DIR}/gpu_output"
+export STRUCT="${RUN_DIR}/structure"
+export LOGDIR="${RUN_DIR}/logs"
+
+# Alphafold 2
+
 export ALPHAFOLD_BASE="/storage/icds/RISE/sw8/alphafold"
 export ALPHAFOLD_DB="${ALPHAFOLD_BASE}/alphafold_databases"
-
-export CURRENT_DATE=$(date +"%Y%m%d_%H%M%S")
-export RUN_DIR="${WORKINGDIR}/run_${CURRENT_DATE}"
-
-export CPU_OUTPUT="${RUN_DIR}/CPU-SLURM"
-export GPU_OUTPUT="${RUN_DIR}/GPU-SLURM"
-export STRUCT="${RUN_DIR}"
-export LOGDIR="${RUN_DIR}/logs"
 
 export UNIREF90_PATH="${ALPHAFOLD_DB}/uniref90/uniref90.fasta"
 export MGNIFY_PATH="${ALPHAFOLD_DB}/mgnify/mgy_clusters_2022_05.fa"
@@ -29,3 +33,10 @@ export HHBLITS_BINARY_PATH="${ALPHAFOLD_BASE}/hh-suite/bin/hhblits"
 
 export JOB_NAME="alphafold_job_${USER}"
 export FASTA_FILE="${CPU_OUTPUT}/input.fasta"
+
+# Alphafold 3
+
+export ALPHAFOLD3_BASE="/storage/icds/RISE/sw8/alphafold3"
+export ALPHAFOLD3_DB="${ALPHAFOLD3_BASE}/alphafold3/databases"
+export ALPHAFOLD3_WEIGHTS="${ALPHAFOLD3_BASE}/alphafold3_weights"
+export ALPHAFOLD3_CONTAINER="${ALPHAFOLD3_BASE}/singularity/alphafold3_241202.sif"
