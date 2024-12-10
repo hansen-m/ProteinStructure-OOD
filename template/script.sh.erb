@@ -11,6 +11,22 @@ export WORKINGDIR="<%= context.working_directory %>"
 # Setup the environment variables
 source ${SESSIONDIR}/alphafold_env.sh
 
+# Setup common functions
+update_status() {
+    echo "${1}" > "${STATUS_FILE}"
+}
+export -f update_status
+
+handle_error() {
+    echo "Error occurred: ${1}"
+    update_status "failed"
+    exit 1
+}
+export -f handle_error
+
+# Setup output directory
+mkdir -p "${CPU_OUTPUT}" "${GPU_OUTPUT}" "${INPUT_DIR}" "${STRUCT}" "${LOGDIR}" || handle_error "Failed to create directories"
+
 echo "running" > "$STATUS_FILE"
 
 echo "Debug: Using status file: $STATUS_FILE"

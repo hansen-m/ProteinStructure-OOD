@@ -7,23 +7,7 @@ ACCOUNT="${4}"
 STATUS_FILE="${5}"
 TIMESTAMP="${6}"
 
-update_status() {
-    echo "${1}" > "${STATUS_FILE}"
-}
-
-handle_error() {
-    echo "Error occurred: ${1}"
-    update_status "failed"
-    exit 1
-}
-
 trap 'error_code=$?; echo "Debug: Trap caught error ${error_code} at line ${BASH_LINENO[0]}"; if [[ ${error_code} -ne 0 ]]; then handle_error "Error ${error_code} at line ${BASH_LINENO[0]}"; fi' ERR
-
-mkdir -p "${INPUT_DIR}" || handle_error "Failed to create input directory"
-mkdir -p "${CPU_OUTPUT}" || handle_error "Failed to create CPU output directory"
-mkdir -p "${GPU_OUTPUT}" || handle_error "Failed to create GPU output directory"
-mkdir -p "${STRUCT}" || handle_error "Failed to create structure directory"
-mkdir -p "${LOGDIR}" || handle_error "Failed to create log directory"
 
 JSON_FILE="${INPUT_DIR}/input.json"
 
@@ -49,7 +33,7 @@ GENERATED_JSON_FILE="/root/af_output/${NAME_LOWER}/${NAME_LOWER}_data.json"
 echo "Debug: Expected generated JSON file: ${GENERATED_JSON_FILE}"
 
 # Create CPU SLURM script
-CPU_SLURM_SCRIPT="${CPU_OUTPUT}/cpu_job_${TIMESTAMP}.slurm"
+CPU_SLURM_SCRIPT="${CPU_OUTPUT}/cpu_job.slurm"
 cat <<EOF > "${CPU_SLURM_SCRIPT}"
 #!/bin/bash
 #SBATCH --nodes=1
@@ -58,7 +42,7 @@ cat <<EOF > "${CPU_SLURM_SCRIPT}"
 #SBATCH --mem=128GB
 #SBATCH --time=6:00:00
 #SBATCH --partition=open
-#SBATCH --output=${LOGDIR}/cpu_job_${TIMESTAMP}.log
+#SBATCH --output=${LOGDIR}/cpu_job.log
 
 echo "Debug: Starting AlphaFold 3 CPU job"
 
@@ -86,7 +70,7 @@ CPU_JOB_ID=$(sbatch "${CPU_SLURM_SCRIPT}" | awk '{print $4}') || handle_error "F
 echo "Debug: CPU job submitted with ID: ${CPU_JOB_ID}"
 
 # Create GPU SLURM script
-GPU_SLURM_SCRIPT="${GPU_OUTPUT}/gpu_job_${TIMESTAMP}.slurm"
+GPU_SLURM_SCRIPT="${GPU_OUTPUT}/gpu_job.slurm"
 cat <<EOF > "${GPU_SLURM_SCRIPT}"
 #!/bin/bash
 #SBATCH --nodes=1
@@ -96,7 +80,7 @@ cat <<EOF > "${GPU_SLURM_SCRIPT}"
 #SBATCH --time=10:00:00
 #SBATCH --account=${ACCOUNT}
 #SBATCH --partition=sla-prio
-#SBATCH --output=${LOGDIR}/gpu_job_${TIMESTAMP}.log
+#SBATCH --output=${LOGDIR}/gpu_job.log
 #SBATCH --dependency=afterok:${CPU_JOB_ID}
 
 echo "Debug: Starting AlphaFold 3 GPU job"
@@ -120,6 +104,7 @@ echo "Debug: Created GPU SLURM script"
 
 GPU_JOB_ID=$(sbatch "${GPU_SLURM_SCRIPT}" | awk '{print $4}') || handle_error "Failed to submit GPU job"
 echo "Debug: GPU job submitted with ID: ${GPU_JOB_ID}"
+
 
 monitor_jobs() {
     local cpu_id=${1}
@@ -154,8 +139,8 @@ monitor_jobs() {
 
             echo "Debug: Job completion check failed"
             echo "Debug: Checking logs..."
-            cat "${LOGDIR}/cpu_job_${TIMESTAMP}.log" 2>/dev/null
-            cat "${LOGDIR}/gpu_job_${TIMESTAMP}.log" 2>/dev/null
+            cat "${LOGDIR}/cpu_job.log" 2>/dev/null
+            cat "${LOGDIR}/gpu_job.log" 2>/dev/null
             update_status "failed"
             exit 1
         fi
