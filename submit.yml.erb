@@ -14,3 +14,9 @@ script:
     <%- slurm_args.each do |arg| -%>
       - "<%= arg %>"
     <%- end -%>
+  conn_params:
+    - run_dir
+    - session_type
+    - working_directory
+    - job_status
+    - output_dir 

@@ -1,1 +1,14 @@
-#after.sh.erb
+#!/bin/bash
+
+STATUS_FILE="${run_dir}/job_status.txt"
+if [[ -f "$STATUS_FILE" ]]; then
+    export job_status=$(cat "$STATUS_FILE")
+else
+    export job_status="running"
+fi
+
+export output_dir="${run_dir}/output"
+
+echo "Debug: Final job_status = $job_status"
+echo "Debug: Run directory = $run_dir"
+echo "Debug: Output directory = $output_dir"

@@ -1,2 +1,12 @@
 # Export the module function if it exists
 [[ $(type -t module) == "function" ]] && export -f module
+
+export run_dir="${WORKINGDIR}/run_${TIMESTAMP}"
+export session_type="<%= context.session_type %>"
+export working_directory="<%= context.working_directory %>"
+export output_dir="${run_dir}/output" 
+
+mkdir -p "${run_dir}"
+mkdir -p "${output_dir}"
+
+echo "running" > "${run_dir}/job_status.txt"
