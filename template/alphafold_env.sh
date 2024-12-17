@@ -12,8 +12,6 @@ export GPU_OUTPUT="${RUN_DIR}/gpu_output"
 export STRUCT="${RUN_DIR}/structure"
 export LOGDIR="${RUN_DIR}/logs"
 
-# Alphafold 2
-
 export ALPHAFOLD_BASE="/storage/icds/RISE/sw8/alphafold"
 export ALPHAFOLD_DB="${ALPHAFOLD_BASE}/alphafold_databases"
 
@@ -33,8 +31,6 @@ export HHBLITS_BINARY_PATH="${ALPHAFOLD_BASE}/hh-suite/bin/hhblits"
 
 export JOB_NAME="alphafold_job_${USER}"
 export FASTA_FILE="${CPU_OUTPUT}/input.fasta"
-
-# Alphafold 3
 
 export ALPHAFOLD3_BASE="/storage/icds/RISE/sw8/alphafold3"
 export ALPHAFOLD3_DB="${ALPHAFOLD3_BASE}/alphafold3/databases"

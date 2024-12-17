@@ -1,166 +1,46 @@
 #!/bin/bash
-set -e
-
-echo "Starting AlphaFold workflow at $(date)"
-
-export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
-
-export SESSIONDIR=<%= session.staged_root %>
-export WORKINGDIR="<%= context.working_directory %>"
-
-# Setup the environment variables
-source ${SESSIONDIR}/alphafold_env.sh
-
-echo "running" > "$STATUS_FILE"
-
-echo "Debug: Using status file: $STATUS_FILE"
-echo "Debug: Working directory: $WORKINGDIR"
 
 <%- if context.session_type == "AlphaFold 2" -%>
-# Existing AlphaFold 2 script
-echo "Debug: Session type is AlphaFold 2"
+# AlphaFold 2 specific logic
 
 # Prepare input sequence
 INPUT_SEQUENCE="<%= context.protein_sequence.to_s %>"
-echo "Debug: About to run alphafold.sh with sequence: $INPUT_SEQUENCE"
 
-# Launch the AlphaFold 2 job
-srun --export=ALL bash "${SESSIONDIR}/alphafold.sh" \
-    "$INPUT_SEQUENCE" "$USER" "$WORKINGDIR" "<%= context.auto_accounts %>" "$STATUS_FILE" "$RUN_ID" &
-ALPHAFOLD_PID=$!
-
-echo "Debug: AlphaFold 2 process launched with PID: $ALPHAFOLD_PID"
-
-# Monitor the job status
-trap 'echo "Debug: Script received termination signal"; exit 1' SIGTERM SIGINT
-while true; do
-    if ! kill -0 $ALPHAFOLD_PID 2>/dev/null; then
-        echo "Debug: AlphaFold 2 process $ALPHAFOLD_PID is no longer running"
-        sleep 5
-
-        if [[ ! -f "$STATUS_FILE" ]]; then
-            echo "Debug: Status file not found, waiting..."
-            sleep 30
-            continue
-        fi
-
-        STATUS=$(cat "$STATUS_FILE")
-        echo "Debug: Final status from file: $STATUS"
-
-        case $STATUS in
-            "completed")
-                echo "AlphaFold 2 job completed successfully"
-                exit 0
-                ;;
-            "failed")
-                echo "AlphaFold 2 job failed"
-                echo "Debug: Checking for error logs in $WORKINGDIR"
-                ls -la $WORKINGDIR
-                exit 1
-                ;;
-            "running")
-                echo "Debug: Process ended but status is still running, waiting..."
-                sleep 30
-                continue
-                ;;
-            *)
-                echo "Debug: Unknown status: $STATUS"
-                sleep 30
-                continue
-                ;;
-        esac
-    fi
-
-    if [[ -f "$STATUS_FILE" ]]; then
-        STATUS=$(cat "$STATUS_FILE")
-        echo "Debug: Current status: $STATUS at $(date)"
-
-        if [[ "$STATUS" == "running" ]]; then
-            sleep 60
-            continue
-        fi
-    fi
-
-    sleep 60
-done
-
-<%- elsif context.session_type == "AlphaFold 3" -%>
-echo "Debug: Session type is AlphaFold 3"
-
-GPU_ACCOUNT="<%= context.auto_accounts %>"
-
-echo "Debug: GPU Account: $GPU_ACCOUNT"
-echo "Debug: Received JSON input"
-
-# Write JSON input to a temporary file
-JSON_INPUT_FILE="${WORKINGDIR}/input_${RUN_ID}.json"
-
-cat << 'EOF' > "${JSON_INPUT_FILE}"
-<%= context.protein_sequence.to_s %>
+# Save input sequence to FASTA file
+cat <<EOF > "${FASTA_FILE}"
+${INPUT_SEQUENCE}
 EOF
 
-echo "Debug: JSON input written to ${JSON_INPUT_FILE}"
+echo "Debug: Created FASTA file at ${FASTA_FILE}"
 
-# Launch the AlphaFold 3 job
-srun --export=ALL bash "${SESSIONDIR}/alphafold3.sh" \
-    "$JSON_INPUT_FILE" "$USER" "$WORKINGDIR" "$GPU_ACCOUNT" "$STATUS_FILE" "$RUN_ID" &
-ALPHAFOLD_PID=$!
+chmod +x "${SESSIONDIR}/alphafold.sh"
 
-echo "Debug: AlphaFold 3 process launched with PID: $ALPHAFOLD_PID"
+bash "${SESSIONDIR}/alphafold.sh" \
+    "${FASTA_FILE}" "$USER" "$WORKINGDIR" "<%= context.auto_accounts %>" "$STATUS_FILE" "$TIMESTAMP"
 
-# Monitor the job status
-trap 'echo "Debug: Script received termination signal"; exit 1' SIGTERM SIGINT
-while true; do
-    if ! kill -0 $ALPHAFOLD_PID 2>/dev/null; then
-        echo "Debug: AlphaFold 3 process $ALPHAFOLD_PID is no longer running"
-        sleep 5
+echo "Debug: AlphaFold 2 process launched"
 
-        if [[ ! -f "$STATUS_FILE" ]]; then
-            echo "Debug: Status file not found, waiting..."
-            sleep 30
-            continue
-        fi
+<%- elsif context.session_type == "AlphaFold 3" -%>
 
-        STATUS=$(cat "$STATUS_FILE")
-        echo "Debug: Final status from file: $STATUS"
+JSON_INPUT="<%= context.protein_sequence.to_s %>"
 
-        case $STATUS in
-            "completed")
-                echo "AlphaFold 3 job completed successfully"
-                exit 0
-                ;;
-            "failed")
-                echo "AlphaFold 3 job failed"
-                echo "Debug: Checking for error logs in $WORKINGDIR"
-                ls -la $WORKINGDIR
-                exit 1
-                ;;
-            "running")
-                echo "Debug: Process ended but status is still running, waiting..."
-                sleep 30
-                continue
-                ;;
-            *)
-                echo "Debug: Unknown status: $STATUS"
-                sleep 30
-                continue
-                ;;
-        esac
-    fi
+mkdir -p "${INPUT_DIR}" || handle_error "Failed to create input directory"
 
-    if [[ -f "$STATUS_FILE" ]]; then
-        STATUS=$(cat "$STATUS_FILE")
-        echo "Debug: Current status: $STATUS at $(date)"
+JSON_INPUT_FILE="${INPUT_DIR}/input.json"
+cat <<EOF > "${JSON_INPUT_FILE}"
+<%= context.protein_sequence.to_s %>
+EOF
+echo "Debug: Created JSON input file at ${JSON_INPUT_FILE}"
 
-        if [[ "$STATUS" == "running" ]]; then
-            sleep 60
-            continue
-        fi
-    fi
+chmod +x "${SESSIONDIR}/alphafold3.sh"
 
-    sleep 60
-done
+bash "${SESSIONDIR}/alphafold3.sh" \
+    "${JSON_INPUT_FILE}" "$USER" "$WORKINGDIR" "<%= context.auto_accounts %>" "$STATUS_FILE" "$TIMESTAMP"
+
+echo "Debug: AlphaFold 3 job has been launched"
 
 <%- else -%>
 echo "Invalid session type. Exiting"
+update_status "failed"
+exit 1
 <%- end -%>
