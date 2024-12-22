@@ -1,8 +1,10 @@
-<div class="alert alert-info" >
+<div class="alert alert-info">
   <strong>Job Information:</strong>
   <ul>
-    <li>Your protein structure prediction job is now running. You will be notified via email upon completion. Note: The Time Remaining above is the job walltime remaining, and therefore not a true estimate of job completion time.</li>
-   <li>Job output will be available in the selected working directory</a>.
-   </li>
+    <li><em>Time Remaining</em> is the job walltime and not actual time until completion.</li>
+    <li>The job output will be available in the specified working directory.</li>
+    <% if connect.BC_EMAIL_ON_STARTED == 1 %>
+    <li>You will receive an email when the job starts and another at completion.</li>
+    <% end %>
   </ul>
 </div>

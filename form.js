@@ -3,16 +3,16 @@ $(document).ready(function() {
       var sessionType = $('#batch_connect_session_context_session_type').val();
 
       var label = 'Input Sequence';
-      var helpText = 'Enter the input sequence.';
+      var helpText = 'Enter the input sequence';
       var rows = 5;
 
       if (sessionType === 'AlphaFold 2') {
           label = 'Input Sequence (FASTA format)';
-          helpText = 'Input must be in FASTA format for AlphaFold2.';
+          helpText = 'Must be in FASTA format for AlphaFold 2';
           rows = 5;
       } else if (sessionType === 'AlphaFold 3') {
           label = 'Input Sequence (JSON format)';
-          helpText = 'Input must be in JSON format as prescribed by AlphaFold3. You can find detailed instructions to set up the input in <a href="https://github.com/google-deepmind/alphafold3/blob/main/docs/input.md" target="_blank">AlphaFold3\'s documentation</a>.';
+          helpText = 'Must be in compatible JSON format (specifications are in the <a href="https://github.com/google-deepmind/alphafold3/blob/main/docs/input.md" target="_blank">AlphaFold 3 documentation)</a>.';
           rows = 15;
       }
 
@@ -42,31 +42,31 @@ $(document).ready(function() {
         const json = JSON.parse(sequence);
 
         if (!(typeof json === 'object' && json !== null)) {
-            displayError("JSON input must be an object.");
+            displayError("JSON input must be an object");
             return false;
         }
 
         if (!json.name) {
-            displayError("JSON input must contain a 'name' field.");
+            displayError("JSON input must contain a 'name' field");
             return false;
         }
         if (!Array.isArray(json.modelSeeds)) {
-            displayError("JSON input must contain a 'modelSeeds' array.");
+            displayError("JSON input must contain a 'modelSeeds' array");
             return false;
         }
         if (!Array.isArray(json.sequences)) {
-            displayError("JSON input must contain a 'sequences' array.");
+            displayError("JSON input must contain a 'sequences' array");
             return false;
         }
 
         for (const entity of json.sequences) {
             if (!entity.protein && !entity.dnaSequence && !entity.rnaSequence && !entity.ligand && !entity.ion) {
-                displayError("Each sequence must contain at least one of 'protein', 'dnaSequence', 'rnaSequence', 'ligand', or 'ion'.");
+                displayError("Each sequence must contain at least one of 'protein', 'dnaSequence', 'rnaSequence', 'ligand', or 'ion'");
                 return false;
             }
             if (entity.protein) {
                 if (!entity.protein.id || !entity.protein.sequence) {
-                    displayError("Each 'protein' must contain 'id' and 'sequence'.");
+                    displayError("Each 'protein' must contain 'id' and 'sequence'");
                     return false;
                 }
             }
@@ -93,12 +93,12 @@ $(document).ready(function() {
 
       if (sessionType === 'AlphaFold 3') {
           if (!isValidJSON(sequence)) {
-              displayError("Invalid input: Please enter a valid JSON sequence for AlphaFold 3.");
+              displayError("Invalid Input: Enter a valid JSON sequence for AlphaFold 3");
               return false;
           }
       } else if (sessionType === 'AlphaFold 2') {
           if (!isValidFASTA(sequence)) {
-              displayError("Invalid input: Please enter a valid FASTA sequence for AlphaFold 2.");
+              displayError("Invalid Input: Enter a valid FASTA sequence for AlphaFold 2");
               return false;
           }
       }

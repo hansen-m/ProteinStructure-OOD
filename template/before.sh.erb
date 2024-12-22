@@ -1,93 +1,31 @@
 #!/bin/bash
-
 [[ $(type -t module) == "function" ]] && export -f module
 
-update_status() {
-    echo "${1}" > "${STATUS_FILE}"
-}
-
-handle_error() {
-    echo "Error occurred: ${1}"
-    update_status "failed"
-    exit 1
-}
-
-export SESSIONDIR="$PWD"
-
 export WORKINGDIR="<%= context.working_directory %>"
+export BC_EMAIL_ON_STARTED="<%= context.bc_email_on_started %>"
 export SESSION_TYPE="<%= context.session_type %>"
-export USER="<%= Etc.getlogin %>"
-export TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+export CREATED_AT="<%= session.created_at %>"
 
-source "${SESSIONDIR}/alphafold_env.sh" || handle_error "Failed to source alphafold_env.sh"
+source "alphafold_env.sh"
 
-monitor_jobs() {
-    local cpu_id=${1}
-    local gpu_id=${2}
+mkdir -p "${WORKINGDIR}" "${INPUT_DIR}" "${STRUCT}"
 
-    while true; do
-        CPU_STATE=$(squeue -j "${cpu_id}" -h -o %t 2>/dev/null)
-        GPU_STATE=$(squeue -j "${gpu_id}" -h -o %t 2>/dev/null)
+<%- if context.session_type == "AlphaFold 2" -%>
+# AlphaFold 2
 
-        echo "Debug: CPU Job State: ${CPU_STATE}, GPU Job State: ${GPU_STATE}"
+# Prepare input sequence and save to FASTA file
+echo '<%= context.protein_sequence.to_s %>' > "${FASTA_FILE}"
+echo "Debug: Created FASTA file at ${FASTA_FILE}"
 
-        if [[ -z "${CPU_STATE}" && -z "${GPU_STATE}" ]]; then
-            sleep 10
+echo "Starting AlphaFold 2 process"
+source ./alphafold.sh "${FASTA_FILE}" "$WORKINGDIR" "<%= context.auto_accounts %>" "$STATUS_FILE"
 
-            cpu_status=$(check_job_completion "${cpu_id}")
-            gpu_status=$(check_job_completion "${gpu_id}")
+<%- elsif context.session_type == "AlphaFold 3" -%>
 
-            echo "Debug: CPU completion status: ${cpu_status}"
-            echo "Debug: GPU completion status: ${gpu_status}"
+echo '<%= context.protein_sequence.to_s %>' > "${JSON_FILE}"
+echo "Debug: Created JSON input file at ${JSON_FILE}"
 
-            if [[ ${cpu_status} -eq 0 && ${gpu_status} -eq 0 ]]; then
-                echo "Both jobs completed successfully"
+echo "Starting AlphaFold 3 process"
+source ./alphafold3.sh "${JSON_FILE}" "$WORKINGDIR" "<%= context.auto_accounts %>" "$STATUS_FILE"
 
-                if [[ -d "${STRUCT}" && -f "${EXPECTED_OUTPUT_FILE}" ]]; then
-                    echo "Output files found in ${STRUCT}"
-                    update_status "completed"
-                    exit 0
-                else
-                    echo "Output files not found in ${STRUCT}"
-                    update_status "failed"
-                    exit 1
-                fi
-
-            elif [[ ${cpu_status} -eq 1 || ${gpu_status} -eq 1 ]]; then
-                echo "One or both jobs failed"
-                echo "CPU job log:"
-                cat "${LOGDIR}/cpu_job_${TIMESTAMP}.log" 2>/dev/null
-                echo "GPU job log:"
-                cat "${LOGDIR}/gpu_job_${TIMESTAMP}.log" 2>/dev/null
-                update_status "failed"
-                exit 1
-            fi
-        fi
-
-        sleep 60
-    done
-}
-
-check_job_completion() {
-    local job_id=${1}
-    local state=$(sacct -j "${job_id}" -n -o State | head -1)
-    state=$(echo "${state}" | xargs)
-
-    if [[ "${state}" == "COMPLETED" ]]; then
-        return 0
-    elif [[ "${state}" == "FAILED" || "${state}" == "CANCELLED" || "${state}" == "TIMEOUT" ]]; then
-        return 1
-    else
-        return 2
-    fi
-}
-
-mkdir -p "${WORKINGDIR}" || handle_error "Failed to create working directory"
-mkdir -p "${RUN_DIR}" "${INPUT_DIR}" || handle_error "Failed to create run or input directory"
-mkdir -p "${CPU_OUTPUT}" "${GPU_OUTPUT}" "${STRUCT}" "${LOGDIR}/${JOB_NAME}" || handle_error "Failed to create output directories"
-
-export run_dir="${RUN_DIR}"
-export session_type="${SESSION_TYPE}"
-export working_directory="${WORKINGDIR}"
-export job_status="running"
-export output_dir="${STRUCT}"
+<%- end -%>

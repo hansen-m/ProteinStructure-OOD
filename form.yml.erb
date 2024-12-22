@@ -8,21 +8,25 @@ form:
   - working_directory
   - protein_sequence
   - agree_terms
+  - bc_email_on_started
 
 attributes:
   session_type:
     label: "Protein Prediction Engine"
-    help: "NOTE: Only AlphaFold 2 and 3 are currently supported. ESMFold and RFDiffusion will be coming soon!"
+    help: "Note: ESMFold and RFDiffusion will be coming soon"
     widget: select
     options:
       - ["AlphaFold 2", "AlphaFold 2"]
       - ["AlphaFold 3", "AlphaFold 3"]
 
+  auto_accounts:
+    label: "GPU SLA Account"
+    help: "Note: Account with access to GPU resources required"
+
   protein_sequence:
     widget: text_area
     label: "Input Sequence"
-    rows: 5
-    help: "Enter the input sequence."
+    help: "Enter the input sequence"
 
   agree_terms:
     label: "I agree to Google's Terms of Service"
@@ -33,7 +37,11 @@ attributes:
 
   working_directory:
     label: "Working Directory"
-    help: "Select or enter the path for the working directory. This is the directory where the output files will be saved."
+    help: "Output files will be saved here (scratch space recommended)"
     widget: "path_selector"
     show_files: false
     value: "/scratch/<%= ENV['USER'] %>"
+
+  bc_email_on_started:
+    label: "I would like to receive an email when the session starts and completes"
+  
