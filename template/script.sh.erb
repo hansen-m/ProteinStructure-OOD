@@ -175,7 +175,13 @@ Download links:
 EOF
 )
 
-# Send the email
-echo -e "$body" | mail -s "Protein Prediction Job Complete" <%= ENV["USER"] + "@psu.edu" %>
+# Send the email using sendmail
+sendmail <%= ENV["USER"] + "@psu.edu" %> <<EOF
+Subject: Protein Prediction Job Complete
+From: no-reply@psu.edu
+
+$body
+EOF
+
 sleep 5
 <% end %>
