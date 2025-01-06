@@ -6,34 +6,42 @@ form:
   - session_type
   - auto_accounts
   - working_directory
-  - input_sequence
+  - protein_sequence
+  - agree_terms
+  - bc_email_on_started
 
 attributes:
-
-  auto_accounts:
-    label: "Allocation for Structure Prediction Phase (GPU Phase)"
-    help: "Please select a GPU allocation from the drop-down"
-    
   session_type:
     label: "Protein Prediction Engine"
-    help: "NOTE: Only AlphaFold is currently supported. ESMFold and RFDiffusion will be coming soon!"
+    help: "Note: ESMFold and RFDiffusion will be coming soon"
     widget: select
     options:
-      - ["AlphaFold", "AlphaFold"]
+      - ["AlphaFold 2", "AlphaFold 2"]
+      - ["AlphaFold 3", "AlphaFold 3"]
 
-  input_sequence:
-    label: Input Amino Acid Sequence (FASTA Format)
+  auto_accounts:
+    label: "GPU SLA Account"
+    help: "Note: Account with access to GPU resources required"
+
+  protein_sequence:
     widget: text_area
-    pattern: "^(>.+\n([ACDEFGHIKLMNPQRSTVWY]+(\n|$))+)+"
-    value: |
-      >Seq1
-      LYLIFGAWAGMVGTALSLLIRAELGQPGTLLGDDQIYNVIVTAHAFVMIFFMVMPIMIGGFGNWLVPLMI
-    help: |
-      - Runtime increases with sequence length
+    label: "Input Sequence"
+    help: "Enter the input sequence"
+
+  agree_terms:
+    label: "I agree to Google's Terms of Service"
+    widget: check_box
+    help: "<a href=\"https://github.com/google-deepmind/alphafold3/blob/main/WEIGHTS_TERMS_OF_USE.md\" target=\"_blank\">Read the terms</a>"
+    required: true
+    data-hide-session-type: "AlphaFold 2"
 
   working_directory:
     label: "Working Directory"
-    help: "Select or enter the path for the working directory. This is the directory where the output files will be saved."
+    help: "Output files will be saved here (scratch space recommended)"
     widget: "path_selector"
     show_files: false
     value: "/scratch/<%= ENV['USER'] %>"
+
+  bc_email_on_started:
+    label: "I would like to receive an email when the session starts and completes"
+  

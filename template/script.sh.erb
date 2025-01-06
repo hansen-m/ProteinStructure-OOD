@@ -1,89 +1,187 @@
-#!/bin/bash
-set -e
+# Define the associative arrays for both CPU and GPU phases
+declare -A cpu_progress_table
+declare -A gpu_progress_table
 
-echo "Starting AlphaFold workflow at $(date)"
+# Populate the arrays with pattern strings and corresponding progress values
+<% if context.session_type == "AlphaFold 2" %>
+cpu_progress_table["Started Jackhmmer (uniref90.fasta) query"]="10:Started UniRef90 search"
+cpu_progress_table["Finished Jackhmmer (uniref90.fasta) query"]="25:Completed UniRef90 search"
+cpu_progress_table["Started Jackhmmer (mgy_clusters_2022_05.fa) query"]="35:Started MGnify search"
+cpu_progress_table["Finished Jackhmmer (mgy_clusters_2022_05.fa) query"]="70:Completed MGnify search"
+cpu_progress_table["Started HHblits query"]="75:Started HHblits search"
+cpu_progress_table["Finished HHblits query"]="90:Completed HHblits search"
+cpu_progress_table["Searching for template"]="95:Searching for templates"
+cpu_progress_table["Total number of templates"]="100:Found templates"
 
-export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
+gpu_progress_table["Starting GPU job"]="0:Starting GPU job"
+gpu_progress_table["Running model model_1_multimer_v3_pred_0"]="10:Running model 1"
+gpu_progress_table["Total JAX model model_1_multimer_v3_pred_0"]="20:Completed model 1"
+gpu_progress_table["Running model model_2_multimer_v3_pred_0"]="30:Running model 2"
+gpu_progress_table["Total JAX model model_2_multimer_v3_pred_0"]="40:Completed model 2"
+gpu_progress_table["Running model model_3_multimer_v3_pred_0"]="50:Running model 3"
+gpu_progress_table["Total JAX model model_3_multimer_v3_pred_0"]="60:Completed model 3"
+gpu_progress_table["Running model model_4_multimer_v3_pred_0"]="70:Running model 4"
+gpu_progress_table["Total JAX model model_4_multimer_v3_pred_0"]="80:Completed model 4"
+gpu_progress_table["Running model model_5_multimer_v3_pred_0"]="90:Running model 5"
+gpu_progress_table["Total JAX model model_5_multimer_v3_pred_0"]="95:Completed model 5"
+gpu_progress_table["Iteration completed: Einit"]="100:GPU Completed"
 
-export SESSIONDIR=<%= session.staged_root %>
-export WORKINGDIR="<%= context.working_directory %>"
+<% elsif context.session_type == "AlphaFold 3" %>
 
-<%- if context.session_type == "AlphaFold" -%>
-echo "Debug: About to run alphafold.sh with sequence: <%= context.input_sequence.to_s %>"
+cpu_progress_table["Detected .* JSON"]="5:Detected AlphaFold 3 input format"
+cpu_progress_table["Getting protein MSAs for sequence .*"]="10:Getting protein MSAs"
+cpu_progress_table["Query sequence: .*"]="15:Started Jackhmmer search"
+cpu_progress_table["Finished Jackhmmer in .* seconds"]="25:Completed Jackhmmer search"
+cpu_progress_table["Deduplicating MSAs for sequence .*"]="50:Deduplicating MSAs"
+cpu_progress_table["Started HHblits query"]="55:Started HHblits search"
+cpu_progress_table["Finished HHblits query"]="65:Completed HHblits search"
+cpu_progress_table["Getting protein templates for sequence .*"]="70:Getting protein templates"
+cpu_progress_table["Finished Hmmbuild in .* seconds"]="75:Building HMM"
+cpu_progress_table["Finished Hmmsearch in .* seconds"]="80:Searching HMM"
+cpu_progress_table["Processing fold inputs"]="85:Processing fold inputs"
+cpu_progress_table["Running data pipeline"]="90:Running data pipeline"
+cpu_progress_table["Processing chain .*"]="95:Processing chain"
+cpu_progress_table["Writing model input JSON"]="99:Writing model input JSON"
+cpu_progress_table["Done processing fold input"]="100:Done processing fold input"
 
-RUN_ID=$(date +"%Y%m%d_%H%M%S")
-STATUS_FILE="${WORKINGDIR}/job_status_${RUN_ID}.txt"
-echo "running" > "$STATUS_FILE"
+gpu_progress_table["Starting GPU job"]="0:Starting GPU job"
+gpu_progress_table["Unable to initialize backend 'rocm'"]="1:Unable to initialize ROCm backend"
+gpu_progress_table["Unable to initialize backend 'tpu'"]="2:Unable to initialize TPU backend"
+gpu_progress_table["Detected .* JSON"]="5:Detected AlphaFold 3 input format"
+gpu_progress_table["processing .* random_seed"]="10:Processing fold input"
+gpu_progress_table["Calculating bucket size for input with .* tokens"]="15:Calculating bucket size"
+gpu_progress_table["Got bucket size .* for input with .* tokens"]="20:Got bucket size"
+gpu_progress_table["Found local devices"]="25:Found local devices"
+gpu_progress_table["Building model from scratch"]="30:Building model from scratch"
+gpu_progress_table["Processing fold inputs"]="35:Processing fold inputs"
+gpu_progress_table["Processing fold input #.*"]="40:Processing specific fold input"
+gpu_progress_table["Checking we can load the model parameters"]="45:Checking model parameters"
+gpu_progress_table["Predicting 3D structure for .* for seed"]="50:Predicting 3D structure"
+gpu_progress_table["Featurising data for seeds"]="55:Featurising data for seeds"
+gpu_progress_table["Featurising .* with rng_seed"]="60:Featurising specific input"
+gpu_progress_table["Running model inference for seed"]="65:Running model inference"
+gpu_progress_table["Extracting output structures"]="70:Extracting output structures"
+gpu_progress_table["Writing outputs for .* for seed"]="75:Writing outputs"
+gpu_progress_table["Done processing fold input"]="100:Done processing fold input"
+<% end %>
 
-echo "Debug: About to run alphafold.sh with sequence: <%= context.input_sequence.to_s %>"
-echo "Debug: Using status file: $STATUS_FILE"
+# Function to update job_status.json
+update_status() {
+    local progress=$1
+    local output=$2
+    local phase=$3
+    shift 3
+    local detail=("$@")
 
-# Add debug information for the srun command
-echo "Debug: Launching srun command at $(date)"
-source ${SESSIONDIR}/alphafold_env.sh
-srun --export=ALL bash "${SESSIONDIR}/alphafold.sh" $'<%= context.input_sequence.to_s.gsub("\n","\\n").gsub("'", "'\\''") %>' $USER $WORKINGDIR "<%= context.auto_accounts %>" "$STATUS_FILE" "$RUN_ID" &
-ALPHAFOLD_PID=$!
+    if [ ${#detail[@]} -eq 0 ]; then
+        detail_json="[]"
+    else
+        detail_json="["
+        for item in "${detail[@]}"; do
+            detail_json+="\"$item\","
+        done
+        detail_json="${detail_json%,}]"  # Remove the trailing comma and close the array
+    fi
 
-echo "Debug: AlphaFold process launched with PID: $ALPHAFOLD_PID"
+    echo "{\"progress\": \"$progress\", \"status\": \"$output\", \"phase\": \"$phase\", \"detail\": $detail_json}" | tee ${STATUS_FILE}
+}
 
-# Add trap to catch script termination
-trap 'echo "Debug: Script received termination signal"; exit 1' SIGTERM SIGINT
+# Function to monitor log files and terminate when the SLURM job ends
+monitor_log() {
+    local logfile=$1
+    local job_id=$2
+    local phase=$3
+    local -n progress_table=$4
 
-while true; do
-    if ! kill -0 $ALPHAFOLD_PID 2>/dev/null; then
-        echo "Debug: AlphaFold process $ALPHAFOLD_PID is no longer running"
+    update_status 0 "Initializing job..." "$phase"
+
+    declare -A matched_patterns
+    local ordered_patterns=()
+
+    while true; do
+        local last_progress=""
+        local last_output=""
+
+        # Read the entire log file
+        while IFS= read -r line; do
+            for pattern in "${!progress_table[@]}"; do
+                if echo "$line" | grep -q "$pattern"; then
+                    IFS=':' read -r progress output <<< "${progress_table[$pattern]}"
+                    last_progress=$progress
+                    last_output=$output
+                    if [ -z "${matched_patterns[$output]}" ]; then
+                        matched_patterns["$output"]=1
+                        ordered_patterns+=("$output")
+                    fi
+                fi
+            done
+        done < $logfile
+
+        # Update status with the last matched state and prior matched states
+        if [[ -n $last_progress && -n $last_output ]]; then
+            update_status "$last_progress" "$last_output" "$phase" "${ordered_patterns[@]}"
+        fi
+
+        # Check if the SLURM job is still running
+        job_state=$(squeue -j $job_id -h -o %t)
+        if [ "$job_state" != "R" ]; then
+            echo "SLURM job $job_id is no longer running"
+            break
+        fi
+
+        sleep 5  # Check every 5 seconds
+    done
+}
+
+# Function to wait for SLURM job to start and log file to be created
+wait_for_job_and_log() {
+    local job_id=$1
+    local logfile=$2
+
+    update_status 0 "Waiting for job $job_id to start..." "Initializing"
+    while ! squeue -j $job_id > /dev/null 2>&1; do
         sleep 5
-        
-        if [[ ! -f "$STATUS_FILE" ]]; then
-            echo "Debug: Status file not found, waiting for it to appear..."
-            sleep 30
-            continue
-        fi
-        
-        STATUS=$(cat "$STATUS_FILE")
-        echo "Debug: Final status from file: $STATUS"
-        
-        case $STATUS in
-            "completed")
-                echo "AlphaFold job completed successfully"
-                exit 0
-                ;;
-            "failed")
-                echo "AlphaFold job failed"
-                echo "Debug: Checking for error logs in $WORKINGDIR"
-                ls -la $WORKINGDIR
-                exit 1
-                ;;
-            "running")
-                echo "Debug: Process ended but status is still running, waiting..."
-                sleep 30
-                continue
-                ;;
-            *)
-                echo "Debug: Unknown status: $STATUS"
-                sleep 30
-                continue
-                ;;
-        esac
-    fi
-    
-    if [[ -f "$STATUS_FILE" ]]; then
-        STATUS=$(cat "$STATUS_FILE")
-        echo "Debug: Current status: $STATUS at $(date)"
-        
-        if [[ "$STATUS" == "running" ]]; then
-            sleep 60
-            continue
-        fi
-    fi
-    
-    sleep 60
-done
+    done
 
-<%- elsif context.session_type == "ESMFold" -%>
-echo "running $USER"
-source ${SESSIONDIR}/esmfold_env.sh
-srun --export=ALL bash "${SESSIONDIR}/esmfold.sh" $USER
-<%- else -%>
-echo "Invalid session type. Exiting"
-<%- end -%>
+    echo "Waiting for log file $logfile to be created..."
+    while [ ! -f $logfile ]; do
+        sleep 5
+    done
+}
+
+# Wait for CPU job to start and log file to be created, then monitor CPU phase
+wait_for_job_and_log $CPU_JOB_ID $CPU_LOG_FILE
+monitor_log $CPU_LOG_FILE $CPU_JOB_ID "$SESSION_TYPE CPU Phase - MSA Generation" cpu_progress_table
+
+# Wait for GPU job to start and log file to be created, then monitor GPU phase after CPU phase is complete
+wait_for_job_and_log $GPU_JOB_ID $GPU_LOG_FILE
+monitor_log $GPU_LOG_FILE $GPU_JOB_ID "$SESSION_TYPE GPU Phase - Structure Prediction" gpu_progress_table
+
+<% if context.bc_email_on_started == "1" %>
+# Completion email
+body=$(cat <<EOF
+Your Protein Prediction Job is Complete
+
+Account: <%= context.auto_accounts %>
+Session ID: <%= session.id %>
+Session Type: <%= context.session_type %>
+
+Download links:
+
+"$OOD_BASE/pun/sys/dashboard/files/fs$RUN_DIR"
+"$OOD_BASE/pun/sys/dashboard/files/fs$STRUCT"
+
+- Institute for Computational and Data Sciences
+EOF
+)
+
+# Send the email using sendmail
+sendmail <%= ENV["USER"] + "@psu.edu" %> <<EOF
+Subject: Protein Prediction Job Complete
+From: no-reply@psu.edu
+
+$body
+EOF
+
+sleep 5
+<% end %>
