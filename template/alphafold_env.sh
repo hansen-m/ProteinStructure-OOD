@@ -33,5 +33,3 @@ export ALPHAFOLD3_BASE="/storage/icds/RISE/sw8/alphafold3"
 export ALPHAFOLD3_DB="${ALPHAFOLD3_BASE}/alphafold3/databases"
 export ALPHAFOLD3_WEIGHTS="${ALPHAFOLD3_BASE}/alphafold3_weights"
 export ALPHAFOLD3_CONTAINER="${ALPHAFOLD3_BASE}/singularity/alphafold3_241202.sif"
-
-export OOD_FILES_BASE="https://portal.hpc.psu.edu/pun/sys/dashboard/files/fs"
