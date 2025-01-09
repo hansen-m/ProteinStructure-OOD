@@ -156,32 +156,3 @@ monitor_log $CPU_LOG_FILE $CPU_JOB_ID "$SESSION_TYPE CPU Phase - MSA Generation"
 # Wait for GPU job to start and log file to be created, then monitor GPU phase after CPU phase is complete
 wait_for_job_and_log $GPU_JOB_ID $GPU_LOG_FILE
 monitor_log $GPU_LOG_FILE $GPU_JOB_ID "$SESSION_TYPE GPU Phase - Structure Prediction" gpu_progress_table
-
-<% if context.bc_email_on_started == "1" %>
-# Completion email
-body=$(cat <<EOF
-Your Protein Prediction Job is Complete
-
-Account: <%= context.auto_accounts %>
-Session ID: <%= session.id %>
-Session Type: <%= context.session_type %>
-
-Download links:
-
-"$OOD_BASE/pun/sys/dashboard/files/fs$RUN_DIR"
-"$OOD_BASE/pun/sys/dashboard/files/fs$STRUCT"
-
-- Institute for Computational and Data Sciences
-EOF
-)
-
-# Send the email using sendmail
-sendmail <%= ENV["USER"] + "@psu.edu" %> <<EOF
-Subject: Protein Prediction Job Complete
-From: no-reply@psu.edu
-
-$body
-EOF
-
-sleep 5
-<% end %>

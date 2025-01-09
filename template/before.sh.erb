@@ -10,6 +10,11 @@ source "alphafold_env.sh"
 
 mkdir -p "${WORKINGDIR}" "${INPUT_DIR}" "${STRUCT}"
 
+<% if context.bc_email_on_started == "1" %>
+# Add all emails if checked
+scontrol update jobid=$SLURM_JOBID MailType=ALL
+<% end %>
+
 <%- if context.session_type == "AlphaFold 2" -%>
 # AlphaFold 2
 
