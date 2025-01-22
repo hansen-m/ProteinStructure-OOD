@@ -13,8 +13,8 @@ cat <<EOF > "${CPU_SLURM_SCRIPT}"
 #!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=32
-#SBATCH --mem=128GB
+#SBATCH --cpus-per-task=24
+#SBATCH --mem=120GB
 #SBATCH --time=6:00:00
 #SBATCH --partition=open
 #SBATCH --output=${CPU_LOG_FILE}
