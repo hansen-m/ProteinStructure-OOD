@@ -155,6 +155,7 @@ This project is licensed under the MIT License.
 - AlphaFold by DeepMind Technologies Limited
 - Singularity container by prehensilecode
 - The research project is generously funded by Cornell University BRC Epigenomics Core Facility (RRID:SCR_021287), Penn State Institute for Computational and Data Sciences (RRID:SCR_025154) and Penn State University Center for Applications of Artificial Intelligence and Machine Learning to Industry Core Facility (RRID:SCR_022867)
+- Computational support was provided by NSF ACCESS to William KM Lai and Gretta Kellogg through BIO230041
 
 ## Contact
 For questions or issues, please contact:
