@@ -4,6 +4,7 @@
 > **Date:** March 19, 2025, 4:00 PM – 4:25 PM (25 min)  
 > **Title:** AlphaFold accessibility: an optimized open-source OOD app for Protein Structure Prediction  
 > **Speakers:** Vinay Saji Mathew [Pennsylvania State University] , William Lai [Cornell]
+> 
 > **Track:** Application Track [featuring AI OnDemand]  
 > **Location:** Tsai Auditorium (CGIS S010)
 
