@@ -3,7 +3,8 @@
 FASTA_FILE="${1}"
 WORKINGDIR="${2}"
 ACCOUNT="${3}"
-STATUS_FILE="${4}"
+PARTITION="${4}"
+STATUS_FILE="${5}"
 
 CPU_SLURM_SCRIPT="${INPUT_DIR}/af_cpu_job.slurm"
 cat <<EOF > "${CPU_SLURM_SCRIPT}"
@@ -53,7 +54,7 @@ cat <<EOF > "${GPU_SLURM_SCRIPT}"
 #SBATCH --gpus=1
 #SBATCH --time=10:00:00
 #SBATCH --account=${ACCOUNT}
-#SBATCH --partition=sla-prio
+#SBATCH --partition=${PARTITION}
 #SBATCH --output=${GPU_LOG_FILE}
 #SBATCH --dependency=afterok:${CPU_JOB_ID}
 
