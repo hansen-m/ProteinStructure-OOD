@@ -3,7 +3,8 @@
 JSON_FILE="${1}"
 WORKINGDIR="${2}"
 ACCOUNT="${3}"
-STATUS_FILE="${4}"
+PARTITION="${4}"
+STATUS_FILE="${5}"
 
 NAME=$(grep -oi '"name": *"[^"]*"' "${JSON_FILE}" | sed 's/"name": *"\([^"]*\)"/\1/I' | tr '[:upper:]' '[:lower:]') || handle_error "Failed to extract 'name' from JSON"
 echo "Debug: Name from JSON input: ${NAME}"
@@ -51,7 +52,7 @@ cat <<EOF > "${GPU_SLURM_SCRIPT}"
 #SBATCH --gpus=1
 #SBATCH --time=10:00:00
 #SBATCH --account=${ACCOUNT}
-#SBATCH --partition=sla-prio
+#SBATCH --partition=${PARTITION}
 #SBATCH --output=${GPU_LOG_FILE}
 #SBATCH --dependency=afterok:${CPU_JOB_ID}
 
