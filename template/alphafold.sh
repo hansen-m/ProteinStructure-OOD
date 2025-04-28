@@ -51,7 +51,7 @@ cat <<EOF > "${GPU_SLURM_SCRIPT}"
 #SBATCH --nodes=1
 #SBATCH --ntasks=8
 #SBATCH --mem=60GB
-#SBATCH --gpus=1
+#SBATCH --gres=gpu:a100_3g:1
 #SBATCH --time=10:00:00
 #SBATCH --account=${ACCOUNT}
 #SBATCH --partition=${PARTITION}
