@@ -17,8 +17,8 @@ attributes:
     help: "Note: ESMFold and RFDiffusion will be coming soon"
     widget: select
     options:
-      - ["AlphaFold 2", "AlphaFold 2"]
-      - ["AlphaFold 3", "AlphaFold 3"]
+      - ["AlphaFold 2", "AlphaFold 2", data-hide-agree-terms: true, data-set-agree-terms: true]
+      - ["AlphaFold 3", "AlphaFold 3", data-hide-agree-terms: false, data-set-agree-terms: false]
 
   auto_accounts:
     label: "GPU Account"
@@ -34,7 +34,6 @@ attributes:
     widget: check_box
     help: "<a href=\"https://github.com/google-deepmind/alphafold3/blob/main/WEIGHTS_TERMS_OF_USE.md\" target=\"_blank\">Read the terms</a>"
     required: true
-    data-hide-session-type: "AlphaFold 2"
 
   working_directory:
     label: "Working Directory"
